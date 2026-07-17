@@ -2,7 +2,610 @@ openapi: 3.0.3
 info:
   title: TaskFlow API
   description: >-
-    API REST para gerenciamento de projetos e tarefas. Contrato inicial (esqueleto) usado para Specification-Driven Development (SDD).
+    API REST para gerenciamento de projetos e tarefas. Contrato formal para Specification-Driven Development (SDD).
   version: 0.1.0
-paths: {}
-components: {}
+
+tags:
+  - name: Projetos
+    description: Operações relacionadas a projetos
+  - name: Tarefas
+    description: Operações relacionadas a tarefas
+
+paths:
+  /projetos:
+    post:
+      tags: [Projetos]
+      summary: Criar um novo projeto
+      operationId: criarProjeto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+            examples:
+              exemplo-criar-projeto:
+                value:
+                  name: Projeto Exemplo
+                  description: Descrição opcional do projeto
+      responses:
+        '201':
+          description: Projeto criado
+          headers:
+            Location:
+              description: URL do recurso criado
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+              examples:
+                projeto-criado:
+                  value:
+                    id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                    name: Projeto Exemplo
+                    description: Descrição opcional do projeto
+                    status: active
+                    createdAt: "2026-07-17T12:00:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/ProjectNameConflict'
+
+    get:
+      tags: [Projetos]
+      summary: Listar projetos (filtro opcional por status)
+      operationId: listarProjetos
+      parameters:
+        - name: status
+          in: query
+          description: Filtrar por status (`active` ou `archived`)
+          schema:
+            $ref: '#/components/schemas/ProjectStatus'
+      responses:
+        '200':
+          description: Lista de projetos (pode ser vazia)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProjectResponse'
+              examples:
+                lista-vazia:
+                  value: []
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /projetos/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+
+    get:
+      tags: [Projetos]
+      summary: Obter um projeto por id
+      operationId: obterProjeto
+      responses:
+        '200':
+          description: Projeto encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+              examples:
+                projeto-exemplo:
+                  value:
+                    id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                    name: Projeto Exemplo
+                    description: null
+                    status: active
+                    createdAt: "2026-07-17T12:00:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/ProjectNotFound'
+
+    patch:
+      tags: [Projetos]
+      summary: Atualizar parcialmente um projeto
+      operationId: atualizarProjeto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProjectRequest'
+      responses:
+        '200':
+          description: Projeto atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/ProjectNotFound'
+        '409':
+          $ref: '#/components/responses/ProjectNameConflict'
+        '422':
+          $ref: '#/components/responses/ProjectHasInProgressTasks'
+
+  /projetos/{id}/tarefas:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+
+    post:
+      tags: [Tarefas]
+      summary: Criar tarefa para um projeto
+      operationId: criarTarefa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+            examples:
+              exemplo-criar-tarefa:
+                value:
+                  title: Implementar feature X
+                  description: Descrição opcional
+                  priority: medium
+      responses:
+        '201':
+          description: Tarefa criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+              examples:
+                tarefa-criada:
+                  value:
+                    id: "d290f1ee-6c54-4b01-90e6-d701748f0851"
+                    title: Implementar feature X
+                    description: null
+                    status: pending
+                    priority: medium
+                    createdAt: "2026-07-17T12:00:00Z"
+                    completedAt: null
+                    projectId: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/ProjectNotFound'
+        '409':
+          $ref: '#/components/responses/TaskTitleConflict'
+        '422':
+          $ref: '#/components/responses/ArchivedProjectDoesNotAcceptTasks'
+
+    get:
+      tags: [Tarefas]
+      summary: Listar tarefas de um projeto com filtros opcionais
+      operationId: listarTarefasDoProjeto
+      parameters:
+        - name: status
+          in: query
+          description: Filtrar por status (`pending`, `in_progress`, `done`)
+          schema:
+            $ref: '#/components/schemas/TaskStatus'
+        - name: priority
+          in: query
+          description: Filtrar por prioridade (`low`, `medium`, `high`)
+          schema:
+            $ref: '#/components/schemas/TaskPriority'
+      responses:
+        '200':
+          description: Lista de tarefas do projeto (pode ser vazia)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskResponse'
+              examples:
+                lista-vazia:
+                  value: []
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/ProjectNotFound'
+
+  /tarefas/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+
+    patch:
+      tags: [Tarefas]
+      summary: Atualizar parcialmente uma tarefa
+      operationId: atualizarTarefa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+      responses:
+        '200':
+          description: Tarefa atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/TaskNotFound'
+        '409':
+          $ref: '#/components/responses/TaskTitleConflict'
+        '422':
+          $ref: '#/components/responses/InvalidTaskStatusTransition'
+
+    delete:
+      tags: [Tarefas]
+      summary: Excluir uma tarefa
+      operationId: excluirTarefa
+      responses:
+        '204':
+          description: Tarefa excluída com sucesso (sem conteúdo)
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/TaskNotFound'
+        '422':
+          $ref: '#/components/responses/TaskCannotBeDeleted'
+
+components:
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      description: Identificador do recurso (UUID)
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    ProjectStatus:
+      type: string
+      enum: [active, archived]
+
+    TaskStatus:
+      type: string
+      enum: [pending, in_progress, done]
+
+    TaskPriority:
+      type: string
+      enum: [low, medium, high]
+
+    ErrorCode:
+      type: string
+      enum:
+        - validation_error
+        - project_not_found
+        - task_not_found
+        - project_has_in_progress_tasks
+        - archived_project_does_not_accept_tasks
+        - invalid_task_status_transition
+        - task_cannot_be_deleted
+        - completed_task_cannot_be_modified
+        - project_name_conflict
+        - task_title_conflict
+
+    ProblemDetailsBase:
+      type: object
+      description: Estrutura base para erros conforme RFC 7807 com campo `code`.
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+      required: [type, title, status, detail, instance, code]
+      additionalProperties: true
+
+    ValidationProblemDetails:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetailsBase'
+        - type: object
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+          required: [errors]
+          additionalProperties: true
+
+    CreateProjectRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Nome do projeto (será normalizado removendo espaços iniciais e finais)
+        description:
+          type: string
+          nullable: true
+      required: [name]
+      additionalProperties: false
+
+    UpdateProjectRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ProjectStatus'
+
+    ProjectResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ProjectStatus'
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+      required: [id, name, status, createdAt]
+      additionalProperties: false
+
+    CreateTaskRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Título da tarefa (será normalizado removendo espaços iniciais e finais)
+        description:
+          type: string
+          nullable: true
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+      required: [title, priority]
+      additionalProperties: false
+
+    UpdateTaskRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+
+    TaskResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+        projectId:
+          type: string
+          format: uuid
+          readOnly: true
+      required: [id, title, status, priority, createdAt, projectId]
+      additionalProperties: false
+
+  responses:
+    BadRequest:
+      description: Requisição inválida
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblemDetails'
+          examples:
+            json-invalido:
+              value:
+                type: 'about:blank'
+                title: 'Dados de entrada inválidos'
+                status: 400
+                detail: 'JSON inválido ou campos ausentes/inválidos.'
+                instance: '/projetos'
+                code: validation_error
+                errors:
+                  name: ['name não pode ser vazio']
+
+    ProjectNotFound:
+      description: Projeto não encontrado
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailsBase'
+          examples:
+            exemplo:
+              value:
+                type: 'about:blank'
+                title: 'Projeto não encontrado'
+                status: 404
+                detail: 'Projeto com o id informado não foi encontrado.'
+                instance: '/projetos/{id}'
+                code: project_not_found
+
+    TaskNotFound:
+      description: Tarefa não encontrada
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailsBase'
+          examples:
+            exemplo:
+              value:
+                type: 'about:blank'
+                title: 'Tarefa não encontrada'
+                status: 404
+                detail: 'Tarefa com o id informado não foi encontrada.'
+                instance: '/tarefas/{id}'
+                code: task_not_found
+
+    ProjectNameConflict:
+      description: Nome de projeto já existe
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailsBase'
+          examples:
+            exemplo:
+              value:
+                type: 'about:blank'
+                title: 'Conflito de nome de projeto'
+                status: 409
+                detail: 'Já existe um projeto com este nome.'
+                instance: '/projetos'
+                code: project_name_conflict
+
+    TaskTitleConflict:
+      description: Título de tarefa duplicado no projeto
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailsBase'
+          examples:
+            exemplo:
+              value:
+                type: 'about:blank'
+                title: 'Conflito de título de tarefa'
+                status: 409
+                detail: 'Já existe uma tarefa com este título neste projeto.'
+                instance: '/projetos/{id}/tarefas'
+                code: task_title_conflict
+
+    ProjectHasInProgressTasks:
+      description: Projeto possui tarefas em progresso
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailsBase'
+          examples:
+            exemplo:
+              value:
+                type: 'about:blank'
+                title: 'Projeto possui tarefas em progresso'
+                status: 422
+                detail: 'Não é possível arquivar o projeto enquanto existirem tarefas em progresso.'
+                instance: '/projetos/{id}'
+                code: project_has_in_progress_tasks
+
+    ArchivedProjectDoesNotAcceptTasks:
+      description: Projeto arquivado não aceita novas tarefas
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailsBase'
+          examples:
+            exemplo:
+              value:
+                type: 'about:blank'
+                title: 'Projeto arquivado'
+                status: 422
+                detail: 'Não é permitido criar tarefas em um projeto arquivado.'
+                instance: '/projetos/{id}/tarefas'
+                code: archived_project_does_not_accept_tasks
+
+    InvalidTaskStatusTransition:
+      description: Transição de status inválida
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailsBase'
+          examples:
+            exemplo:
+              value:
+                type: 'about:blank'
+                title: 'Transição de status inválida'
+                status: 422
+                detail: 'Transição de status não permitida pelo fluxo definido.'
+                instance: '/tarefas/{id}'
+                code: invalid_task_status_transition
+
+    TaskCannotBeDeleted:
+      description: Tarefa não pode ser excluída
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailsBase'
+          examples:
+            exemplo:
+              value:
+                type: 'about:blank'
+                title: 'Tarefa não pode ser excluída'
+                status: 422
+                detail: 'Tarefas em progresso ou concluídas não podem ser excluídas.'
+                instance: '/tarefas/{id}'
+                code: task_cannot_be_deleted
+
+    CompletedTaskCannotBeModified:
+      description: Tarefa concluída não pode ser modificada
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailsBase'
+          examples:
+            exemplo:
+              value:
+                type: 'about:blank'
+                title: 'Tarefa concluída não pode ser modificada'
+                status: 422
+                detail: 'Tarefa em estado done não pode ser alterada.'
+                instance: '/tarefas/{id}'
+                code: completed_task_cannot_be_modified
+
+  examples:
+    ListaVazia:
+      summary: Exemplo de lista vazia
+      value: []

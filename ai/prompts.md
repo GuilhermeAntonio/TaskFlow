@@ -155,3 +155,326 @@ Antes de aplicar as alterações, apresente um resumo do que será modificado. A
 - **Revisor:** Guilherme Bezerra Antonio
 - **Origem:** Solicitação de revisão humana
 - **Resumo da ação:** Ajustes aplicados conforme as instruções de revisão (sequência SDD, remoção de servers do OpenAPI, template de decisões, registro de habilidades e padronização do nome do revisor).
+
+## PROMPT-003 — Geração da primeira versão completa do contrato OpenAPI
+
+- **Data:** 2026-07-17
+- **Ferramenta:** GitHub Copilot Chat
+- **Etapa:** Especificação
+- **Objetivo:** Gerar a primeira versão completa do contrato da API com base no enunciado e nas decisões registradas.
+
+### Prompt completo
+
+```text
+Atue com um especialista de design de APIs e OpenAPI 3.0., usando o como contento as documentações do projeto atual, e com isso atualize o arquivo openapi.yaml de acordo com as descrições abaixo.
+
+
+Pontos de atenção
+
+Altere somente o arquivo openapi.yaml
+Não gere nenhum código ou teste nessa etapa do processo
+
+
+Considere as entidades abaixo:
+
+Projeto
+
+ id: UUID gerado pela aplicação;
+ name: string obrigatória, não pode ser vazia ou conter somente espaços, máximo de 100 caracteres;
+ description: string opcional e nullable;
+ status: enum `active` ou `archived`, sendo `active` o valor inicial e não podendo ter nenhum valor diferente desses;
+ createdAt: date-time UTC gerado pela aplicação.
+
+
+Tarefa
+
+ id: UUID gerado pela aplicação;
+ title: string obrigatória, não pode ser vazia ou conter somente espaços, máximo de 200 caracteres;
+ description: string opcional e nullable, sem limite adicional;
+ status: enum `pending`, `in_progress` ou `done`, sendo `pending` o valor inicial, e não podendo ter nenhum valor diferente desses;
+ priority: enum obrigatório `low`, `medium` ou `high`, não permitindo nenhum valor diferente desses;
+ createdAt: date-time UTC gerado pela aplicação, não permitindo que o usuário cadastre manualmente;
+ completedAt: date-time UTC nullable, preenchido automaticamente quando a tarefa passa de `in_progress` para `done`;
+
+
+Considerando essas entidades, represente todos os endpoints abaixo
+
+POST /projetos
+GET /projetos
+GET /projetos/{id}
+PATCH /projetos/{id}
+POST /projetos/{id}/tarefas
+GET /projetos/{id}/tarefas
+PATCH /tarefas/{id}
+DELETE /tarefas/{id}
+
+
+
+Sobre cada endpoint, considere esses comportamento:
+
+POST
+
+POST /projetos:
+
+	Só aceita no body, name e description, o usuário não pode enviar id, status, ou createdAt, pois, esses dados são inseridos pelo próprio sistema.
+
+	O projeto obrigatoriamente deve iniciar com o status "active
+
+	Em caso se sucesso, ele deve trazer na response os dados do projeto criado e header Location apontando para /projetos/{id}
+
+POST /projetos/{id}/tarefas
+
+	O request aceita somente: title, description e priority.
+	O usuário não pode enviar id, status, createdAt, completedAt ou projectId.
+	A tarefa deve nascer com status `pending`.
+	Em caso se sucesso, ele deve trazer na response a tarefa criada.
+
+GET
+
+GET /projetos
+
+	Possui o filtro opcional de status
+	Em caso se sucesso, retorna uma  array de projetos.
+	Quando não tiver resultados, retornar 200 OK com [].
+	Não incluir regras de paginação
+
+GET /projeto
+
+	Em caso se sucesso, retorna os dados do projeto.
+	Quando não tiver resultados, retornar 200 OK com [].
+
+GET /projetos/{id}/tarefas
+
+	Possui o filtro opcional de status e prioridade
+	Em caso se sucesso, retorna uma  array de projetos.
+	Quando não tiver resultados, retornar 200 OK com [].
+	Caso não encontre o id projeto retornar 404
+	Não incluir regras de paginação
+
+PATCH
+
+Campos omitidos devem permanecer inalterados.
+não permitir campos controlados exclusivamente pela aplicação
+rejeitar requests vazios como {}
+possuir minProperties: 1
+possuir additionalProperties: false
+
+PATCH /projetos/{id}
+
+Permite alterar somente name, description e status.
+Só pode permitir que um projeto no status active mude para archived, quando esse projeto não tiver nenhuma tarefa vinculada ao id dele com o status in_progress.
+É permitido alterar archived para activeactive
+reenviar o mesmo status é aceito como operação idempotente
+Em caso se sucesso, projeto atualizado com `200 OK`
+
+
+PATCH /tarefas/{id}
+
+Permite alterar somente  title e description, status, priority.
+o fluxo obrigatório de status é pending → in_progress → done
+não é permitido pular etapas dos status
+não é permitido retroceder status
+reenviar o mesmo status para uma tarefa pending ou in_progress é idempotente
+o passar de `in_progress` para `done`, completedAt é preenchido automaticamente
+completedAt não pode ser informado ou alterado pelo usuário
+uma tarefa com o status "done" não pode ser alterada
+qualquer outra tentativa de modificar uma tarefa done retorna "422"
+o reenvio isolado de "status": "done" para tarefa já concluída é aceito como idempotente e deve manter o completedAt
+retornar a tarefa atualizada com 200 OK
+
+
+DELETE
+
+DELETE /tarefas/{id}
+
+Uma tarefa só pode se excluída se estiver no status pending, qualquer outro status ela não pode ser excluída
+tarefa inexistente: retorn 404 Not Found
+tarefa in_progress ou done ao tentar serem excluídas retorna 422 Unprocessable Entity
+Em caso se sucesso, deve retornar 204, sem retornar body.
+
+
+Unicidade
+
+nomes de projetos são únicos globalmente;
+títulos de tarefas são únicos dentro do mesmo projeto;
+a comparação ignora maiúsculas, minúsculas e espaços no início e no final;
+conflitos em criação ou atualização retornam `409 Conflict`.
+
+Normalização
+
+name e title devem ser documentados como valores normalizados sem espaços no início e no final;
+name e title vazios ou formados somente por espaços retornam `400`;
+description pode ser omitida ou enviada como null;
+em PATCH, description igual a null remove a descrição atual;
+omitir description mantém o valor atual.
+
+
+Status HTTP
+
+O conjunto do contrato deve cobrir:
+
+- 200 OK
+- 201 Created
+- 204 No Content
+- 400 Bad Request
+- 404 Not Found
+- 409 Conflict
+- 422 Unprocessable Entity
+
+Inclua em cada endpoint somente os status semanticamente aplicáveis.
+
+
+ERROS
+
+Utilize:
+
+ValidationProblemDetails para 400
+ProblemDetails para 404, 409 e 422
+media type application/problem+json
+
+Todos os erros devem conter:
+
+- type;
+- title;
+- status;
+- detail;
+- instance;
+- code.
+
+Os erros `400` também devem conter:
+
+errors: objeto cujas propriedades possuem arrays de mensagens.
+
+Defina schemas reutilizáveis em components/schemas.
+
+Permita extensões adicionais nos schemas de erro para não impedir propriedades de diagnóstico, como traceId.
+
+Utilize exatamente estes códigos:
+
+- validation_error
+- project_not_found
+- task_not_found
+- project_has_in_progress_tasks
+- archived_project_does_not_accept_tasks
+- invalid_task_status_transition
+- task_cannot_be_deleted
+- completed_task_cannot_be_modified
+- project_name_conflict
+- task_title_conflict
+
+
+ESPECIFICAÇÃO DE ERROS
+
+Adicione 400 ValidationProblemDetails nos casos:
+
+
+- JSON inválido;
+- UUID inválido;
+- campo obrigatório ausente;
+- enum inválido;
+- name ou title vazio;
+- limite de caracteres excedido;
+- filtro inválido;
+- PATCH sem campos;
+- propriedade não permitida ou campo somente de leitura enviado.
+
+E para esses casos defina o code como "validation_error"
+
+
+Adicione 404 — ProblemDetails nos casos:
+
+- projeto inexistente: "project_not_found";
+- tarefa inexistente: "task_not_found".
+
+Adicione 409 — ProblemDetails, para o casos:
+
+- projeto com nome duplicado: code "project_name_conflict";
+- tarefa com título duplicado dentro do projeto: code "task_title_conflict".
+
+
+Adicione  422 — ProblemDetails
+
+- arquivar projeto com tarefa in_progress: "project_has_in_progress_tasks"
+- criar tarefa em projeto archived: "archived_project_does_not_accept_tasks"
+- transição inválida de status: "invalid_task_status_transition"
+- excluir tarefa que não esteja pending: "task_cannot_be_deleted"
+- modificar tarefa done: "completed_task_cannot_be_modified"
+
+
+Schemas
+
+Crie schemas separados para:
+
+- CreateProjectRequest
+- UpdateProjectRequest
+- ProjectResponse
+- CreateTaskRequest
+- UpdateTaskRequest
+- TaskResponse
+- ProjectStatus
+- TaskStatus
+- TaskPriority
+- ProblemDetails
+- ValidationProblemDetails
+- ErrorCode
+
+Nos schemas de request:
+
+- utilize additionalProperties: false
+- não inclua campos somente de leitura
+- use required somente para campos obrigatórios
+- use nullable: true para description
+- use minLength e maxLength quando aplicável
+- use minProperties: 1 nos PATCH.
+
+Nos schemas de response:
+
+- marque campos gerados pela aplicação como `readOnly: true`;
+- inclua description e completedAt como propriedades nullable;
+- considere description e completedAt presentes no response, mesmo quando null.
+
+Exemplos
+
+Inclua exemplos para os casos:
+
+- criação de projeto;
+- criação de tarefa;
+- consulta de projeto;
+- consulta de tarefa;
+- lista vazia;
+- erro de validação;
+- projeto não encontrado;
+- tarefa não encontrada;
+- conflito de nome de projeto;
+- conflito de título de tarefa;
+- cada regra de negócio que retorna 422.
+
+Utilize UUIDs válidos e timestamps UTC no formato ISO 8601.
+
+Organização
+
+- use as tags Projetos e Tarefas
+- defina operationId em todos os endpoints
+- reutilize schemas, parâmetros e responses em components
+- não adicione autenticação
+- não adicione servidores
+- não adicione endpoints não solicitados
+- não adicione paginação
+- não crie novas regras de negocio que não foram passadas
+- preserve o arquivo em UTF-8
+
+Antes de alterar o arquivo, apresente um resumo do que foi aplicado, e após a aplicação apresente o que foi adicionado.
+```
+
+### Resultado produzido
+
+Foi gerada a primeira versão completa do `openapi.yaml`, contendo os endpoints, schemas, parâmetros, responses, exemplos e contratos de erro da API TaskFlow.
+
+### Arquivos relacionados
+
+- `openapi.yaml`;
+- `docs/decisoes.md`.
+
+### Limitações
+
+A saída representa uma primeira versão produzida pela IA e deverá passar por revisão humana antes de ser considerada aprovada para orientar a implementação.

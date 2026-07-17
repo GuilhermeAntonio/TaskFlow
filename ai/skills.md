@@ -21,3 +21,14 @@ Este documento registra habilidades efetivamente delegadas à IA para apoiar o d
 - **Observações / Restrições:** A IA não possui autoridade para aprovar requisitos, decisões de projeto ou assumir responsabilidade por aprovações formais; todas as saídas devem ser validadas por revisores humanos.
 
 **Importante:** Nenhum endpoint ou schema de domínio foi definido nesta etapa; o `openapi.yaml` contém apenas o esqueleto inicial solicitado.
+
+## Habilidade: Modelagem inicial do contrato OpenAPI
+
+- **Ferramenta:** GitHub Copilot Chat
+- **Descrição:** Gerar a primeira versão do contrato OpenAPI a partir dos requisitos funcionais, regras de negócio e decisões de design registradas.
+- **Escopo:** Endpoints, parâmetros, schemas, requests, responses, erros e exemplos; sem geração de código de implementação.
+- **Entradas:** Enunciado do desafio, decisões documentadas e prompt com restrições explícitas.
+- **Saída:** Primeira versão completa do arquivo `openapi.yaml`.
+- **Nível de confiança:** Médio
+- **Responsável humano pela revisão:** Guilherme Bezerra Antonio
+- **Restrições:** A versão gerada não é considerada aprovada antes da revisão humana de consistência e aderência ao enunciado.
