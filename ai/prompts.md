@@ -613,3 +613,124 @@ Foi gerada uma segunda versão completa do `openapi.yaml`, contendo os endpoints
 ### Limitações
 
 A saída representa uma nova versão do contrato produzida pela IA a partir dos pontos identificados durante a revisão humana. O resultado ainda deve ser validado antes de ser considerado aprovado para orientar a implementação.
+
+---
+
+## PROMPT-005 — Planejamento e criação do bootstrap da solução .NET
+
+- **Data:** 2026-07-18
+- **Ferramenta:** GitHub Copilot Chat
+- **Modelo:** GPT-5.6 Terra
+- **Etapa:** Implementação — Bootstrap
+- **Objetivo:** Planejar e criar somente a estrutura inicial da solução .NET 8 e do projeto ASP.NET Core Web API, sem implementar funcionalidades ou testes de contrato.
+
+### Prompt completo
+
+```text
+A partir da especificação e das decisões já aprovadas no repositório, Implementação do TaskFlow
+
+Antes de realizar qualquer alteração, leia os arquivos para formar o contexto:
+
+- openapi.yaml
+- docs/decisoes.md
+- ai/skills.md
+- README.md
+
+Considere o arquivo openapi.yaml e o docs/decisoes.md como fontes de verdade para a implementação.
+
+Nessa etapa deve criar somente o bootstrap da solução .NET. Não implemente entidades, persistência, DTOs, endpoints do domínio, validações, regras de negócio ou testes de contrato.
+
+A execução deve ocorrer nessa ordem:
+
+FASE 1 — PLANEJAMENTO
+
+Antes de modificar qualquer arquivo:
+
+1. Leia os artefatos indicados.
+2. Apresente uma lista ordenada das tarefas necessárias para criar o bootstrap.
+3. Informe os comandos que pretende executar.
+4. Informe os arquivos e diretórios que pretende criar, alterar ou remover.
+5. Identifique ambiguidades, suposições ou decisões que não estejam registradas.
+6. Não modifique nenhum arquivo nesta fase.
+7. Aguarde minha confirmação explícita antes de iniciar a execução.
+
+FASE 2 — EXECUÇÃO
+
+Somente após minha confirmação, execute as tarefas aprovadas na ordem apresentada.
+
+Crie a seguinte estrutura:
+
+TaskFlow.sln
+
+src/
+  TaskFlow.Api/
+    TaskFlow.Api.csproj
+
+Requisitos:
+
+1. Utilizar .NET 8.
+2. Criar o projeto TaskFlow.Api como ASP.NET Core Web API
+3. Adicionar o projeto TaskFlow.Api à solution.
+4. Remover arquivos, modelos e endpoints demonstrativos gerados automaticamente pelo template, como WeatherForecast.
+5. Manter apenas a configuração mínima necessária para:
+   - registrar Controllers;
+   - mapear Controllers;
+   - executar a aplicação;
+   - compilar a solution.
+6. Manter o Swagger/OpenAPI gerado pelo template somente se ele fizer parte da configuração padrão mínima da aplicação. Não alterar o contrato openapi.yaml já aprovado.
+7. Não adicionar EF Core, SQLite, WebApplicationFactory, xUnit ou outras dependências nesta etapa.
+8. Não criar o diretório tests nem qualquer projeto de testes.
+9. Não criar arquitetura com múltiplos projetos, CQRS, MediatR, repositórios genéricos ou abstrações ainda não justificadas.
+10. Não implementar Controllers do domínio, entidades, Services, UseCases, DTOs ou regras de negócio.
+11. Não alterar:
+    - openapi.yaml;
+    - docs/decisoes.md;
+    - ai/prompts.md;
+    - ai/revisoes.md;
+    - ai/skills.md;
+    - README.md.
+12. Não criar commits nem executar git push.
+13. Caso encontre uma ambiguidade, não invente uma decisão técnica. Interrompa e apresente a dúvida antes de modificar o repositório.
+
+Após criar a estrutura:
+
+1. Execute dotnet restore.
+2. Execute dotnet build.
+3. Apresente:
+   - as tarefas concluídas;
+   - os arquivos criados, alterados e removidos;
+   - os comandos executados;
+   - o resultado do restore;
+   - o resultado do build;
+   - qualquer diferença entre o plano aprovado e a execução realizada;
+   - qualquer decisão ou suposição feita durante a geração.
+```
+
+### Resultado obtido
+
+### Resultado obtido
+
+O GitHub Copilot Chat criou a solution `TaskFlow.sln`, o projeto `TaskFlow.Api` em .NET 8 e adicionou o projeto à solution.
+
+A primeira saída gerada compilou com sucesso, mas não atendeu completamente às restrições do prompt. O template padrão foi mantido como Minimal API, incluindo o endpoint `/weatherforecast`, o modelo `WeatherForecast` e o arquivo demonstrativo `TaskFlow.Api.http`.
+
+A versão inicial produzida pela IA foi preservada no commit `aff22a4` antes das correções humanas.
+
+Durante a revisão, foram realizadas manualmente as seguintes correções:
+
+- substituição da configuração de Minimal API pelo registro de Controllers com `AddControllers()`;
+- inclusão do mapeamento de Controllers com `MapControllers()`;
+- remoção do endpoint e do modelo `WeatherForecast`;
+- remoção do arquivo demonstrativo `TaskFlow.Api.http`;
+- remoção do pacote `Microsoft.AspNetCore.OpenApi`, que deixou de ser utilizado após a retirada de `WithOpenApi()`.
+
+Após as correções, foram executados `dotnet restore TaskFlow.sln` e `dotnet build TaskFlow.sln`. A compilação foi concluída com zero avisos e zero erros.
+
+### Arquivos relacionados
+
+- `TaskFlow.sln`;
+- `src/TaskFlow.Api/`.
+
+### Limitações
+
+Esta etapa deve criar somente uma base executável e compilável para a API. Nenhuma funcionalidade do domínio ou infraestrutura de testes deve ser implementada antes da revisão humana do bootstrap.

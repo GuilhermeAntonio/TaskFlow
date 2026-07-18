@@ -212,3 +212,66 @@ A aprovação do contrato não garante, por si só, que a implementação futura
 Durante a implementação, serão criados testes de contrato com xUnit e `WebApplicationFactory` para comparar as respostas reais da API com o comportamento definido no `openapi.yaml`.
 
 A revisão final preserva a separação entre a geração assistida por IA, as correções humanas e a validação automatizada do artefato.
+
+---
+
+### Revisão da estrutura inicial da solução .NET
+
+- **ID:** Revisao-20260718-004
+- **Data:** 2026-07-18
+- **Revisor:** Guilherme Bezerra Antonio
+- **Origem:** Estrutura inicial gerada pelo GitHub Copilot Chat a partir do `PROMPT-005 — Planejamento e criação do bootstrap da solução .NET`
+- **Versão revisada:** Commit `aff22a4`
+- **Decisão:** Corrigida
+
+#### Partes aceitas
+
+- Criação da solution `TaskFlow.sln`;
+- Criação do projeto `src/TaskFlow.Api/TaskFlow.Api.csproj`;
+- Utilização do .NET 8;
+- Adição do projeto `TaskFlow.Api` à solution;
+- Manutenção das configurações padrão de ambiente e execução;
+- Inclusão do Swagger para utilização em ambiente de desenvolvimento;
+- Ausência de dependências de persistência, testes ou arquiteturas não solicitadas;
+- Compilação bem-sucedida da estrutura inicialmente gerada.
+
+#### Partes corrigidas
+
+- Substituição da configuração baseada em Minimal API pelo registro de Controllers com `AddControllers()`;
+- Inclusão de `MapControllers()` no pipeline da aplicação;
+- Remoção do endpoint demonstrativo `/weatherforecast`;
+- Remoção do modelo demonstrativo `WeatherForecast`;
+- Remoção do arquivo `TaskFlow.Api.http`, que ainda referenciava o endpoint demonstrativo;
+- Remoção do pacote `Microsoft.AspNetCore.OpenApi`, que deixou de possuir utilização após a retirada de `WithOpenApi()`.
+
+#### Partes rejeitadas
+
+- O endpoint `/weatherforecast` e o modelo `WeatherForecast` foram rejeitados porque eram exemplos do template e não pertenciam ao domínio do TaskFlow;
+- A configuração por Minimal API foi rejeitada porque o prompt determinava o uso de ASP.NET Core Web API com Controllers;
+- O arquivo `TaskFlow.Api.http` foi rejeitado porque continha somente uma requisição ao endpoint demonstrativo removido.
+
+#### Validações realizadas
+
+Foram executados os seguintes comandos após as correções:
+
+```text
+dotnet restore TaskFlow.sln
+dotnet build TaskFlow.sln
+```
+
+O build foi concluído com:
+```text
+0 Aviso(s)
+0 Erro(s)
+```
+#### Ação realizada
+
+saída da IA → preservação → revisão humana → correção → validação
+
+#### Arquivos afetados
+
+- `src/TaskFlow.Api/Program.cs`;
+- `src/TaskFlow.Api/TaskFlow.Api.csproj`;
+- `src/TaskFlow.Api/TaskFlow.Api.http`;
+- `ai/prompts.md`;
+- `ai/revisoes.md`.
