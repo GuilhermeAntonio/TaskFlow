@@ -11,7 +11,7 @@ using TaskFlow.Api.Data;
 namespace TaskFlow.Api.Data.Migrations
 {
     [DbContext(typeof(TaskFlowDbContext))]
-    [Migration("20260718184406_InitialCreate")]
+    [Migration("20260718195510_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -30,7 +30,6 @@ namespace TaskFlow.Api.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(4000)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")

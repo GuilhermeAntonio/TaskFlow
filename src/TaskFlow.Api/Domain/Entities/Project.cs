@@ -9,7 +9,7 @@ namespace TaskFlow.Api.Domain.Entities
         public Guid Id { get; set; }
         public string Name { get; set; } = null!;
         public string? Description { get; set; }
-        public ProjectStatus Status { get; set; } = ProjectStatus.active;
+        public ProjectStatus Status { get; set; } = ProjectStatus.Active;
         public DateTime CreatedAt { get; set; }
 
         // Internal normalized field for uniqueness (not part of public contract)

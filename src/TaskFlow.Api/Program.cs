@@ -7,7 +7,10 @@ builder.Services.AddControllers();
 builder.Services.AddSwaggerGen();
 
 // Register DbContext (SQLite) - connection string from configuration
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=taskflow.db";
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException(
+        "Connection string 'DefaultConnection' was not configured.");
 builder.Services.AddDbContext<TaskFlowDbContext>(options =>
     options.UseSqlite(connectionString));
 

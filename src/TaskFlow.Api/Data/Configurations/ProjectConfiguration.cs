@@ -16,7 +16,6 @@ namespace TaskFlow.Api.Data.Configurations
                 .HasMaxLength(100);
 
             builder.Property(p => p.Description)
-                .HasMaxLength(4000)
                 .IsRequired(false);
 
             builder.Property(p => p.Status)

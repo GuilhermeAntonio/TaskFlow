@@ -26,45 +26,52 @@ namespace TaskFlow.Api.Data
 
         public override int SaveChanges()
         {
-            ApplyAuditableRules();
+            ApplyPersistenceRules();
             return base.SaveChanges();
         }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            ApplyAuditableRules();
+            ApplyPersistenceRules();
             return base.SaveChangesAsync(cancellationToken);
         }
 
-        private void ApplyAuditableRules()
+        private void ApplyPersistenceRules()
         {
             var entries = ChangeTracker.Entries()
-                .Where(e => e.Entity is Project || e.Entity is TaskItem)
+                .Where(entry =>
+                    (entry.Entity is Project || entry.Entity is TaskItem) &&
+                    (entry.State == EntityState.Added ||
+                    entry.State == EntityState.Modified))
                 .ToList();
+
+            var utcNow = DateTime.UtcNow;
 
             foreach (var entry in entries)
             {
-                if (entry.Entity is Project p)
+                if (entry.Entity is Project project)
                 {
                     if (entry.State == EntityState.Added)
                     {
-                        p.CreatedAt = DateTime.UtcNow;
+                        project.CreatedAt = utcNow;
                     }
-                    p.NormalizedName = Normalize(p.Name);
+
+                    project.NormalizedName = Normalize(project.Name);
                 }
 
-                if (entry.Entity is TaskItem t)
+                if (entry.Entity is TaskItem taskItem)
                 {
                     if (entry.State == EntityState.Added)
                     {
-                        t.CreatedAt = DateTime.UtcNow;
+                        taskItem.CreatedAt = utcNow;
                     }
-                    t.NormalizedTitle = Normalize(t.Title);
+
+                    taskItem.NormalizedTitle = Normalize(taskItem.Title);
                 }
             }
         }
 
-        private static string Normalize(string value)
+        private static string Normalize(string? value)
         {
             return value?.Trim().ToLowerInvariant() ?? string.Empty;
         }

@@ -275,3 +275,77 @@ saída da IA → preservação → revisão humana → correção → validaçã
 - `src/TaskFlow.Api/TaskFlow.Api.http`;
 - `ai/prompts.md`;
 - `ai/revisoes.md`.
+
+---
+
+### Revisão da base de domínio e persistência
+
+- **ID:** Revisao-20260718-005
+- **Data:** 2026-07-18
+- **Revisor:** Guilherme Bezerra Antonio
+- **Origem:** Base gerada pelo GitHub Copilot Chat a partir do `PROMPT-006`
+- **Versão revisada:** Commit `7bfd217`
+- **Decisão:** Corrigida
+
+#### Partes aceitas
+
+- Estrutura das entidades `Project` e `TaskItem`;
+- configuração do EF Core com SQLite;
+- criação do `TaskFlowDbContext`;
+- configurações separadas por entidade;
+- relacionamento de um projeto para muitas tarefas;
+- campos internos normalizados;
+- índice único global para nomes de projeto;
+- índice único de títulos de tarefa dentro de cada projeto;
+- ferramenta local `dotnet-ef`;
+- estratégia de migrations;
+- ausência de Controllers, Services e endpoints fora do escopo.
+
+#### Partes corrigidas
+
+- Remoção do limite de 4.000 caracteres da descrição do projeto;
+- renomeação de `TaskStatus` para `TaskItemStatus`;
+- adequação dos enums às convenções do C#;
+- correção da nulabilidade da navegação `TaskItem.Project`;
+- restrição das regras do `SaveChanges` aos estados `Added` e `Modified`;
+- utilização de um único valor UTC em cada operação;
+- remoção do fallback silencioso da connection string;
+- limpeza do `appsettings.Development.json`;
+- regeneração da migration inicial.
+
+#### Partes rejeitadas
+
+- O limite de 4.000 caracteres foi rejeitado porque não estava definido nos artefatos do projeto;
+- o arquivo `InitialCreate.sql` foi rejeitado por duplicar a migration mantida pelo EF Core;
+- o nome `TaskStatus` foi rejeitado por conflitar com um tipo existente no .NET.
+
+#### Validações realizadas
+
+Foram executados:
+
+```text
+dotnet restore TaskFlow.sln
+dotnet build TaskFlow.sln
+```
+
+Resultado:
+
+```text
+0 Aviso(s)
+0 Erro(s)
+```
+
+A migration regenerada foi revisada para confirmar:
+
+- campos obrigatórios e opcionais;
+- tamanhos máximos;
+- chave estrangeira;
+- exclusão com `Restrict`;
+- índices únicos;
+- ausência do limite não especificado de 4.000 caracteres.
+
+Também foi confirmado que a migration ainda não foi aplicada e nenhum banco SQLite foi criado.
+
+#### Ação realizada
+
+A saída inicial da IA foi preservada no commit `7bfd217`. As correções foram realizadas manualmente e a migration foi regenerada após a estabilização do modelo.
