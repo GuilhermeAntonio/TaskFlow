@@ -3,8 +3,11 @@
 
 ## PROMPT-001 — Estrutura documental inicial
 
-**Prompt:**
+- **Data:** 2026-07-17
+- **Ferramenta:** GitHub Copilot Chat
+- **Objetivo:** Criar a estrutura documental inicial do projeto TaskFlow e documentar o processo de geração.
 
+**Prompt:**
 
 ```text
 Atuando como um engenheiro de software .NET responsável por preparar a estrutura inicial de um projeto conduzido por Specification-Driven Development (SDD), para um projeto chamado TaskFlow, uma API REST para gerenciamento de projetos e tarefas. Siga as seguintes
@@ -72,6 +75,10 @@ Antes de criar os arquivos, apresente resumidamente quais arquivos serão criado
 **Limitações:** A geração foi restrita aos artefatos documentais iniciais e não incluiu código de implementação, endpoints ou schemas de domínio. O `openapi.yaml` foi produzido somente como um esqueleto inicial.
 
 ## PROMPT-002 — Revisão crítica da estrutura documental
+
+- **Data:** 2026-07-17
+- **Ferramenta:** GitHub Copilot Chat
+- **Objetivo:** Rever e corrigir os artefatos documentais iniciais do projeto TaskFlow.
 
 **Prompt:**
 
@@ -480,16 +487,12 @@ Foi gerada a primeira versão completa do `openapi.yaml`, contendo os endpoints,
 A saída representa uma primeira versão produzida pela IA e deverá passar por revisão humana antes de ser considerada aprovada para orientar a implementação.
 
 
-## Prompt 004 — Definição dos schemas do contrato OpenAPI
-
-
-
-## PROMPT-003 — Geração da primeira versão completa do contrato OpenAPI
+## PROMPT-004 — Refinamento do contrato OpenAPI
 
 - **Data:** 2026-07-17
 - **Ferramenta:** GitHub Copilot Chat
 - **Etapa:** Especificação
-- **Objetivo:** Gerar a primeira versão completa do contrato da API com base no enunciado e nas decisões registradas.
+- **Objetivo:** Refinar o arquivo `openapi.yaml`, corrigindo schemas, exemplos de erros e descrições das operações sem alterar as decisões já aprovadas.
 
 ### Prompt completo
 
@@ -605,9 +608,8 @@ Foi gerada uma segunda versão completa do `openapi.yaml`, contendo os endpoints
 
 ### Arquivos relacionados
 
-- `openapi.yaml`;
-- `docs/decisoes.md`.
+- `openapi.yaml`.
 
 ### Limitações
 
-A saída representa uma segunda versão produzida pela IA para realizar ajustes que foram identificados na primeira versão, e deverá passar por revisão humana antes de ser considerada aprovada para orientar a implementação.
+A saída representa uma nova versão do contrato produzida pela IA a partir dos pontos identificados durante a revisão humana. O resultado ainda deve ser validado antes de ser considerado aprovado para orientar a implementação.

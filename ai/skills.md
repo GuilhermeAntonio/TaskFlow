@@ -32,3 +32,14 @@ Este documento registra habilidades efetivamente delegadas à IA para apoiar o d
 - **Nível de confiança:** Médio
 - **Responsável humano pela revisão:** Guilherme Bezerra Antonio
 - **Restrições:** A versão gerada não é considerada aprovada antes da revisão humana de consistência e aderência ao enunciado.
+
+## Habilidade: Refinamento de contrato OpenAPI existente
+
+- **Ferramenta:** GitHub Copilot Chat
+- **Descrição:** Refinar uma versão existente do contrato OpenAPI a partir de inconsistências e melhorias identificadas durante a revisão humana.
+- **Escopo:** Ajustes em schemas, descrições de operações, exemplos de erros, campos obrigatórios, referências reutilizáveis e restrições de validação; sem alteração das decisões técnicas aprovadas.
+- **Entradas:** Versão inicial do `openapi.yaml`, decisões registradas, problemas identificados durante a revisão humana e o `PROMPT-004`.
+- **Saída:** Versão refinada do arquivo `openapi.yaml`.
+- **Nível de confiança:** Médio
+- **Responsável humano pela revisão:** Guilherme Bezerra Antonio
+- **Restrições:** O refinamento gerado pela IA não é considerado aprovado automaticamente. O resultado deve passar por validação sintática, análise de consistência e nova revisão humana antes de orientar a implementação.

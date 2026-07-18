@@ -62,6 +62,9 @@ paths:
     get:
       tags: [Projetos]
       summary: Listar projetos (filtro opcional por status)
+      description: >-
+        Retorna os projetos cadastrados, permitindo filtro opcional por status.
+        A listagem é retornada sem ordenação definida.
       operationId: listarProjetos
       parameters:
         - name: status
@@ -206,6 +209,9 @@ paths:
     get:
       tags: [Tarefas]
       summary: Listar tarefas de um projeto com filtros opcionais
+      description: >-
+        Retorna as tarefas pertencentes ao projeto, permitindo filtros opcionais
+        por status e prioridade. A listagem é retornada sem ordenação definida.
       operationId: listarTarefasDoProjeto
       parameters:
         - name: status
@@ -520,15 +526,17 @@ components:
             $ref: '#/components/schemas/ValidationProblemDetails'
           examples:
             corpo-patch-vazio:
+              summary: Objeto vazio enviado em uma atualização parcial
               value:
                 type: 'about:blank'
                 title: 'Dados de entrada inválidos'
                 status: 400
-                detail: 'PATCH não pode ser enviado com corpo vazio.'
+                detail: 'O objeto enviado no PATCH deve conter ao menos um campo.'
                 instance: '/projetos/3fa85f64-5717-4562-b3fc-2c963f66afa6'
                 code: validation_error
                 errors:
-                  requestBody: ['O corpo da requisição deve conter ao menos um campo válido.']
+                  requestBody:
+                    - 'O objeto enviado deve conter ao menos um campo permitido.'
             propriedade-nao-permitida:
               value:
                 type: 'about:blank'
@@ -539,19 +547,47 @@ components:
                 code: validation_error
                 errors:
                   unexpectedField: ['A propriedade extra fornecida não é permitida.']
-            campo-controlado-pelo-sistema:
+            campos-controlados-projeto:
+              summary: Campos controlados pela aplicação enviados na criação do projeto
               value:
                 type: 'about:blank'
-                title: 'Campo controlado pelo sistema enviado'
+                title: 'Campos controlados pela aplicação'
                 status: 400
-                detail: 'Campos gerados pela aplicação não podem ser enviados pelo cliente.'
+                detail: >-
+                  Os campos id, status e createdAt são definidos pela aplicação
+                  e não podem ser enviados pelo cliente na criação do projeto.
                 instance: '/projetos'
                 code: validation_error
                 errors:
-                  id: ['O campo id não pode ser enviado.']
-                  createdAt: ['O campo createdAt não pode ser enviado.']
-                  completedAt: ['O campo completedAt não pode ser enviado.']
-                  projectId: ['O campo projectId não pode ser enviado.']
+                  id:
+                    - 'O campo id não pode ser enviado.'
+                  status:
+                    - 'O campo status não pode ser enviado na criação do projeto.'
+                  createdAt:
+                    - 'O campo createdAt não pode ser enviado.'
+            campos-controlados-tarefa:
+              summary: Campos controlados pela aplicação enviados na criação da tarefa
+              value:
+                type: 'about:blank'
+                title: 'Campos controlados pela aplicação'
+                status: 400
+                detail: >-
+                  Os campos id, status, createdAt, completedAt e projectId são
+                  definidos pela aplicação e não podem ser enviados pelo cliente
+                  na criação da tarefa.
+                instance: '/projetos/3fa85f64-5717-4562-b3fc-2c963f66afa6/tarefas'
+                code: validation_error
+                errors:
+                  id:
+                    - 'O campo id não pode ser enviado.'
+                  status:
+                    - 'O campo status não pode ser enviado na criação da tarefa.'
+                  createdAt:
+                    - 'O campo createdAt não pode ser enviado.'
+                  completedAt:
+                    - 'O campo completedAt não pode ser enviado.'
+                  projectId:
+                    - 'O campo projectId é obtido pelo parâmetro da rota.'
             uuid-invalido:
               value:
                 type: 'about:blank'
@@ -573,15 +609,17 @@ components:
                 errors:
                   status: ['O valor deve ser um dos valores permitidos: active, archived.']
             enum-invalido:
+              summary: Status inválido enviado na atualização do projeto
               value:
                 type: 'about:blank'
                 title: 'Enum inválido'
                 status: 400
-                detail: 'O valor fornecido para o campo é inválido.'
-                instance: '/projetos'
+                detail: 'O valor fornecido para o campo status não é válido.'
+                instance: '/projetos/3fa85f64-5717-4562-b3fc-2c963f66afa6'
                 code: validation_error
                 errors:
-                  status: ['O valor deve ser um dos valores permitidos: active, archived.']
+                  status:
+                    - 'O valor deve ser active ou archived.'
             nome-acima-do-limite:
               value:
                 type: 'about:blank'
