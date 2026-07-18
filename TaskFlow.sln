@@ -1,0 +1,27 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{D85CB4DB-A756-41CF-ABF0-9AD20E6B2894}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskFlow.Api", "src\TaskFlow.Api\TaskFlow.Api.csproj", "{A5A4E4C2-2B5E-4D14-9EED-3BB9DC591CAE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A5A4E4C2-2B5E-4D14-9EED-3BB9DC591CAE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A5A4E4C2-2B5E-4D14-9EED-3BB9DC591CAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A5A4E4C2-2B5E-4D14-9EED-3BB9DC591CAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A5A4E4C2-2B5E-4D14-9EED-3BB9DC591CAE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{A5A4E4C2-2B5E-4D14-9EED-3BB9DC591CAE} = {D85CB4DB-A756-41CF-ABF0-9AD20E6B2894}
+	EndGlobalSection
+EndGlobal
