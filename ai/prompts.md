@@ -921,3 +921,262 @@ Após as correções, a solution foi compilada com zero avisos e zero erros.
 ### Limitações
 
 Este ciclo cria somente a estrutura do domínio e a persistência. Controllers, Services, DTOs, endpoints e regras de atualização de projetos serão implementados em um ciclo posterior.
+
+---
+
+## PROMPT-007 — Planejamento e implementação da API de projetos
+
+- **Data:** 2026-07-18
+- **Ferramenta:** GitHub Copilot Chat
+- **Modelo:** GPT-5.6 Terra
+- **Etapa:** Implementação — API de projetos
+- **Objetivo:** Implementar os contratos HTTP, regras de negócio, Service, Controller e tratamento de erros dos endpoints de projetos.
+
+### Prompt completo
+
+```text
+Implemente a API de projetos do TaskFlow com base nos artefatos já aprovados no repositório.
+
+Antes de realizar qualquer alteração, leia integralmente:
+
+- openapi.yaml
+- docs/decisoes.md
+- ai/skills.md
+- src/TaskFlow.Api/Program.cs
+- src/TaskFlow.Api/Data/TaskFlowDbContext.cs
+- src/TaskFlow.Api/Data/Configurations/ProjectConfiguration.cs
+- src/TaskFlow.Api/Data/Configurations/TaskItemConfiguration.cs
+- src/TaskFlow.Api/Domain/Entities/Project.cs
+- src/TaskFlow.Api/Domain/Entities/TaskItem.cs
+- src/TaskFlow.Api/Domain/Enums/ProjectStatus.cs
+- src/TaskFlow.Api/Domain/Enums/TaskItemStatus.cs
+- src/TaskFlow.Api/Domain/Enums/TaskPriority.cs
+
+Considere openapi.yaml e docs/decisoes.md como as únicas fontes normativas da implementação.
+
+As listas presentes neste prompt servem apenas como checklist operacional e delimitador de escopo. Elas não alteram, complementam ou substituem os requisitos registrados nos artefatos.
+
+Caso uma instrução deste prompt pareça divergir dos artefatos, interrompa a execução e apresente o conflito antes de modificar qualquer arquivo.
+
+Não crie regras, limites, campos ou comportamentos que não estejam registrados nesses arquivos.
+
+A execução deve ocorrer obrigatoriamente em duas fases.
+
+FASE 1 — PLANEJAMENTO
+
+Antes de modificar qualquer arquivo:
+
+1. Apresente uma lista ordenada das tarefas necessárias.
+2. Informe todos os arquivos e diretórios que pretende criar, alterar ou remover.
+3. Informe todos os comandos que pretende executar.
+4. Explique como serão implementados:
+   - DTOs de criação, atualização e resposta;
+   - diferenciação entre campo omitido e campo enviado como null no PATCH;
+   - validação do corpo vazio no PATCH;
+   - rejeição de propriedades não previstas nos DTOs;
+   - serialização dos enums conforme o contrato;
+   - ProjectService;
+   - ProjectsController;
+   - ValidationProblemDetails;
+   - ProblemDetails;
+   - códigos estáveis de erro;
+   - tratamento global de exceções;
+   - unicidade do nome do projeto;
+   - regra de arquivamento;
+   - filtro por status.
+5. Informe como serão tratados conflitos de unicidade causados por concorrência no momento do SaveChanges.
+6. Identifique ambiguidades, suposições ou decisões não registradas.
+7. Não modifique nenhum arquivo nesta fase.
+8. Aguarde minha confirmação explícita antes de iniciar a execução.
+
+FASE 2 — EXECUÇÃO
+
+Somente após minha confirmação explícita, implemente o plano aprovado.
+
+ENDPOINTS
+
+Implemente exclusivamente:
+
+- POST /projetos
+- GET /projetos
+- GET /projetos/{id}
+- PATCH /projetos/{id}
+
+CONTRATOS HTTP
+
+1. Criar DTOs separados para:
+   - criação de projeto;
+   - atualização parcial de projeto;
+   - resposta de projeto.
+2. Não utilizar as entidades do EF Core diretamente como contratos HTTP.
+3. No POST, permitir somente os campos definidos no contrato de criação.
+4. Rejeitar campos controlados pelo servidor, como id, status e createdAt.
+5. No PATCH, permitir somente name, description e status.
+6. Rejeitar id, createdAt e outras propriedades não previstas.
+7. Rejeitar PATCH com corpo vazio.
+8. Diferenciar:
+   - campo description omitido: manter valor atual;
+   - campo description enviado como null: remover a descrição.
+9. O nome deve ser normalizado removendo espaços do início e do final antes da persistência.
+10. O nome deve possuir pelo menos um caractere diferente de espaço.
+11. Não adicionar limite para description caso ele não esteja definido no contrato.
+
+SERIALIZAÇÃO
+
+1. Serializar enums como strings no formato definido no contrato.
+2. Utilizar snake_case em minúsculas quando necessário.
+3. Garantir que ProjectStatus.Active seja exposto como active.
+4. Garantir que ProjectStatus.Archived seja exposto como archived.
+5. Rejeitar valores inválidos de enum com status 400.
+6. Rejeitar propriedades JSON não mapeadas nos DTOs.
+
+SERVICE
+
+1. Criar IProjectService e ProjectService.
+2. O ProjectService deve acessar diretamente TaskFlowDbContext.
+3. Não criar repositório genérico.
+4. Implementar:
+   - criação;
+   - listagem;
+   - consulta por identificador;
+   - atualização parcial.
+5. A listagem deve aceitar filtro opcional por status.
+6. Os filtros devem ser combináveis quando novos filtros forem adicionados futuramente, sem introduzir paginação nesta versão.
+7. Não garantir ordenação na listagem.
+8. Em consultas somente de leitura, utilizar AsNoTracking quando apropriado.
+9. Propagar CancellationToken nas operações assíncronas.
+
+REGRAS CRÍTICAS A VALIDAR
+
+As regras abaixo são um checklist operacional extraído do openapi.yaml e do docs/decisoes.md. Esta seção não substitui esses artefatos.
+
+Em caso de divergência, interrompa a execução e apresente o conflito. Não escolha uma das versões por conta própria.
+
+1. Implementar exatamente as regras de criação, consulta e atualização de projetos definidas nos artefatos.
+2. Garantir a unicidade global do nome do projeto com normalização de espaços e comparação sem diferenciação entre maiúsculas e minúsculas.
+3. Retornar 409 com code project_name_conflict em conflitos de nome, inclusive quando detectados pelo índice único durante SaveChanges.
+4. Retornar 404 com code project_not_found quando o projeto não existir.
+5. Impedir o arquivamento quando houver tarefa InProgress, retornando 422 com code project_has_in_progress_tasks.
+6. Permitir a reativação de Archived para Active.
+7. Tratar a atualização para o mesmo status como idempotente.
+8. Permitir alterações de nome e descrição em projetos arquivados.
+9. Manter id, status inicial e createdAt sob controle do servidor.
+10. Não implementar nenhuma regra de tarefa além da consulta necessária para validar o arquivamento.
+
+ERROS
+
+1. Utilizar ValidationProblemDetails para erros de entrada com status 400.
+2. Incluir code validation_error nas respostas de validação.
+3. Utilizar ProblemDetails para:
+   - 404 project_not_found;
+   - 409 project_name_conflict;
+   - 422 project_has_in_progress_tasks;
+   - erros inesperados.
+4. Criar tratamento global de exceções utilizando os recursos nativos do ASP.NET Core e .NET 8.
+5. Não retornar stack trace, nomes de classes internas ou informações sensíveis.
+6. Preencher status, title, detail, instance e code conforme o contrato.
+7. O campo code deve ser adicionado em ProblemDetails.Extensions.
+8. Manter as respostas aderentes aos schemas e exemplos definidos no openapi.yaml.
+9. Não utilizar exceções genéricas para representar regras de negócio conhecidas.
+
+CONTROLLER
+
+1. Criar ProjectsController baseado em ControllerBase.
+2. Utilizar ApiController.
+3. Usar a rota /projetos.
+4. O Controller não deve acessar TaskFlowDbContext diretamente.
+5. O Controller não deve conter regras de negócio.
+6. POST /projetos deve retornar 201.
+7. POST /projetos deve definir o header Location como /projetos/{id}.
+8. GET /projetos deve retornar 200 e um array, inclusive quando estiver vazio.
+9. GET /projetos/{id} deve retornar 200 quando encontrado.
+10. PATCH /projetos/{id} deve retornar 200 com o projeto atualizado.
+
+REGISTRO DE DEPENDÊNCIAS
+
+1. Registrar IProjectService e ProjectService no container.
+2. Registrar ProblemDetails.
+3. Registrar o handler global de exceções.
+4. Configurar a resposta automática de validação para incluir code validation_error.
+5. Configurar o System.Text.Json para rejeitar propriedades não mapeadas.
+6. Configurar a serialização de enums conforme o contrato.
+
+ESTRUTURA 
+
+src/TaskFlow.Api/
+├── Controllers/
+│   └── ProjectsController.cs
+├── Contracts/
+│   └── Projects/
+│       ├── CreateProjectRequest.cs
+│       ├── UpdateProjectRequest.cs
+│       └── ProjectResponse.cs
+├── Errors/
+│   ├── Exceptions/
+│   └── GlobalExceptionHandler.cs
+├── Services/
+│   └── Projects/
+│       ├── IProjectService.cs
+│       └── ProjectService.cs
+└── Program.cs
+
+A estrutura pode ser ajustada somente quando houver justificativa objetiva, sem criar projetos ou abstrações adicionais.
+
+RESTRIÇÕES
+
+1. Não implementar endpoints de tarefas.
+2. Não implementar TasksController.
+3. Não implementar TaskService.
+4. Não adicionar xUnit, WebApplicationFactory ou projetos de testes.
+5. Não aplicar migrations automaticamente.
+6. Não executar database update.
+7. Não criar nem versionar o arquivo físico do SQLite.
+8. Não criar repositório genérico.
+9. Não adicionar CQRS ou MediatR.
+10. Não dividir a solution em múltiplos projetos.
+11. Não alterar:
+    - openapi.yaml;
+    - docs/decisoes.md;
+    - ai/prompts.md;
+    - ai/revisoes.md;
+    - ai/skills.md;
+    - README.md.
+12. Não criar commits.
+13. Não executar git push.
+14. Não alterar a migration atual, salvo se uma mudança de persistência realmente necessária for identificada e previamente apresentada.
+15. Caso encontre uma ambiguidade, interrompa a execução e apresente a dúvida antes de modificar o repositório.
+16. Não realizar alterações fora do escopo aprovado.
+
+VALIDAÇÃO
+
+Após a implementação:
+
+1. Execute dotnet restore TaskFlow.sln.
+2. Execute dotnet build TaskFlow.sln.
+3. Não execute database update.
+4. Apresente:
+   - tarefas concluídas;
+   - arquivos criados, alterados e removidos;
+   - comandos executados;
+   - validações implementadas;
+   - regras de negócio implementadas;
+   - códigos de erro implementados;
+   - resultado do restore;
+   - resultado do build;
+   - diferenças entre o plano aprovado e a execução;
+   - decisões ou suposições realizadas.
+```
+
+### Resultado obtido
+
+### Arquivos relacionados
+
+- `src/TaskFlow.Api/Controllers/`;
+- `src/TaskFlow.Api/Contracts/Projects/`;
+- `src/TaskFlow.Api/Services/Projects/`;
+- `src/TaskFlow.Api/Errors/`;
+- `src/TaskFlow.Api/Program.cs`.
+
+### Limitações
+
+Este ciclo implementa exclusivamente a API de projetos. A API de tarefas e os testes de contrato serão implementados em ciclos posteriores.
