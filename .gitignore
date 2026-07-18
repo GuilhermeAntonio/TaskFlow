@@ -358,6 +358,10 @@ ASALocalRun/
 # MSBuild Binary and Structured Log
 *.binlog
 
+# Local SQLite database (TaskFlow)
+taskflow.db
+*.db
+
 # NVidia Nsight GPU debugger configuration file
 *.nvuser
 

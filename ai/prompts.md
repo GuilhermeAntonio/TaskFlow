@@ -708,8 +708,6 @@ Após criar a estrutura:
 
 ### Resultado obtido
 
-### Resultado obtido
-
 O GitHub Copilot Chat criou a solution `TaskFlow.sln`, o projeto `TaskFlow.Api` em .NET 8 e adicionou o projeto à solution.
 
 A primeira saída gerada compilou com sucesso, mas não atendeu completamente às restrições do prompt. O template padrão foi mantido como Minimal API, incluindo o endpoint `/weatherforecast`, o modelo `WeatherForecast` e o arquivo demonstrativo `TaskFlow.Api.http`.
@@ -722,7 +720,7 @@ Durante a revisão, foram realizadas manualmente as seguintes correções:
 - inclusão do mapeamento de Controllers com `MapControllers()`;
 - remoção do endpoint e do modelo `WeatherForecast`;
 - remoção do arquivo demonstrativo `TaskFlow.Api.http`;
-- remoção do pacote `Microsoft.AspNetCore.OpenApi`, que deixou de ser utilizado após a retirada de `WithOpenApi()`.
+- Remoção do pacote `Microsoft.AspNetCore.OpenApi`, que deixou de ser utilizado após a retirada de `WithOpenApi()`.
 
 Após as correções, foram executados `dotnet restore TaskFlow.sln` e `dotnet build TaskFlow.sln`. A compilação foi concluída com zero avisos e zero erros.
 
@@ -734,3 +732,163 @@ Após as correções, foram executados `dotnet restore TaskFlow.sln` e `dotnet b
 ### Limitações
 
 Esta etapa deve criar somente uma base executável e compilável para a API. Nenhuma funcionalidade do domínio ou infraestrutura de testes deve ser implementada antes da revisão humana do bootstrap.
+
+---
+
+## PROMPT-006 — Planejamento e criação da base de domínio e persistência
+
+- **Data:** 2026-07-18
+- **Ferramenta:** GitHub Copilot Chat
+- **Modelo:** GPT-5.6 Terra
+- **Etapa:** Implementação — Domínio e persistência
+- **Objetivo:** Criar a base do domínio e configurar a persistência com EF Core e SQLite, sem implementar endpoints.
+
+### Prompt completo
+
+```text
+Implemente a base de domínio e persistência do TaskFlow a partir dos artefatos já aprovados no repositório.
+
+Antes de realizar qualquer alteração, leia integralmente:
+
+- openapi.yaml
+- docs/decisoes.md
+- ai/skills.md
+- src/TaskFlow.Api/Program.cs
+- src/TaskFlow.Api/TaskFlow.Api.csproj
+- src/TaskFlow.Api/appsettings.json
+- src/TaskFlow.Api/appsettings.Development.json
+
+Considere openapi.yaml e docs/decisoes.md como fontes de verdade. Não crie requisitos ou regras que não estejam registrados nesses arquivos.
+
+A execução deve ocorrer obrigatoriamente em duas fases.
+
+FASE 1 — PLANEJAMENTO
+
+Antes de modificar qualquer arquivo:
+
+1. Apresente uma lista ordenada das tarefas necessárias.
+2. Informe todos os comandos que pretende executar.
+3. Informe todos os arquivos e diretórios que pretende criar, alterar ou remover.
+4. Explique como serão representados:
+   - Project;
+   - TaskItem;
+   - status de projeto;
+   - status de tarefa;
+   - prioridade da tarefa;
+   - relacionamento entre projeto e tarefas;
+   - unicidade de nomes e títulos sem diferenciação entre maiúsculas e minúsculas.
+5. Informe como a migration inicial será criada.
+6. Identifique ambiguidades, suposições ou decisões que não estejam registradas.
+7. Não modifique nenhum arquivo nesta fase.
+8. Aguarde minha confirmação explícita antes de iniciar a execução.
+
+FASE 2 — EXECUÇÃO
+
+Somente após minha confirmação explícita, implemente o plano aprovado.
+
+ESCOPO
+
+1. Adicionar EF Core com SQLite ao projeto TaskFlow.Api.
+2. Manter todos os pacotes do EF Core na mesma versão compatível com .NET 8.
+3. Criar um manifesto local de ferramentas .NET, caso ele ainda não exista.
+4. Registrar dotnet-ef como ferramenta local, utilizando a mesma versão dos pacotes do EF Core.
+5. Criar a entidade Project com os campos definidos no contrato.
+6. Criar a entidade TaskItem com todos os campos definidos no contrato.
+7. Utilizar o nome TaskItem para evitar conflito com System.Threading.Tasks.Task.
+8. Criar os enums necessários para:
+   - status de projeto;
+   - status de tarefa;
+   - prioridade de tarefa.
+9. Criar TaskFlowDbContext.
+10. Criar configurações de persistência separadas para Project e TaskItem utilizando IEntityTypeConfiguration.
+11. Configurar o relacionamento de um projeto para muitas tarefas.
+12. Configurar os tamanhos máximos, obrigatoriedade e demais restrições exatamente como definidos no contrato.
+13. Preparar a persistência para garantir:
+   - nome de projeto único globalmente;
+   - comparação de nome sem diferenciação entre maiúsculas e minúsculas;
+   - título de tarefa único dentro do mesmo projeto;
+   - comparação de título sem diferenciação entre maiúsculas e minúsculas.
+14. Para suportar a unicidade, podem ser utilizados campos internos normalizados, desde que eles não façam parte do contrato público da API.
+15. Registrar TaskFlowDbContext no container de dependências.
+16. Configurar a connection string do SQLite nos arquivos de configuração apropriados.
+17. Adicionar ao .gitignore os arquivos locais do SQLite, caso ainda não estejam ignorados.
+18. Criar a migration inicial com o nome InitialCreate.
+19. Executar restore e build ao final.
+
+RESTRIÇÕES
+
+1. Não implementar ProjectsController ou TasksController.
+2. Não implementar Services ou UseCases.
+3. Não implementar DTOs ou contratos HTTP.
+4. Não implementar endpoints.
+5. Não implementar tratamento global de erros nesta etapa.
+6. Não adicionar xUnit, WebApplicationFactory ou projetos de testes.
+7. Não criar repositório genérico.
+8. Não adicionar CQRS, MediatR ou novas camadas de projeto.
+9. Não utilizar EnsureCreated.
+10. Não executar Database.Migrate ou MigrateAsync no Program.cs.
+11. Não aplicar migrations automaticamente durante a inicialização da API.
+12. Não executar database update nesta etapa.
+13. Não criar nem versionar o arquivo físico do banco SQLite.
+14. Não alterar:
+    - openapi.yaml;
+    - docs/decisoes.md;
+    - ai/prompts.md;
+    - ai/revisoes.md;
+    - ai/skills.md;
+    - README.md.
+15. Não criar commits nem executar git push.
+16. Caso encontre uma ambiguidade não resolvida pelos artefatos, interrompa a execução e apresente a dúvida antes de modificar o repositório.
+17. Não realize alterações fora do escopo aprovado.
+
+ESTRUTURA ESPERADA
+
+A estrutura pode seguir esta organização, sem criar projetos adicionais:
+
+src/TaskFlow.Api/
+├── Data/
+│   ├── Configurations/
+│   │   ├── ProjectConfiguration.cs
+│   │   └── TaskItemConfiguration.cs
+│   └── TaskFlowDbContext.cs
+├── Domain/
+│   ├── Entities/
+│   │   ├── Project.cs
+│   │   └── TaskItem.cs
+│   └── Enums/
+├── Migrations/
+└── Program.cs
+
+VALIDAÇÃO
+
+Após a execução:
+
+1. Execute dotnet restore TaskFlow.sln.
+2. Execute dotnet build TaskFlow.sln.
+3. Apresente:
+   - tarefas concluídas;
+   - arquivos criados, alterados e removidos;
+   - comandos executados;
+   - pacotes e versões adicionados;
+   - conteúdo da migration criada;
+   - resultado do restore;
+   - resultado do build;
+   - diferenças entre o plano aprovado e a execução;
+   - decisões ou suposições realizadas.
+```
+
+### Resultado obtido
+
+A preencher após o planejamento, a execução e a revisão humana.
+
+### Arquivos relacionados
+
+- `src/TaskFlow.Api/Domain/`;
+- `src/TaskFlow.Api/Data/`;
+- `src/TaskFlow.Api/Migrations/`;
+- `src/TaskFlow.Api/Program.cs`;
+- `src/TaskFlow.Api/TaskFlow.Api.csproj`.
+
+### Limitações
+
+Este ciclo cria somente a estrutura do domínio e a persistência. Controllers, Services, DTOs, endpoints e regras de atualização de projetos serão implementados em um ciclo posterior.

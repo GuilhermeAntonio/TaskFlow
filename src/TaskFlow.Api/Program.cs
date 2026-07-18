@@ -1,7 +1,15 @@
+using Microsoft.EntityFrameworkCore;
+using TaskFlow.Api.Data;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddSwaggerGen();
+
+// Register DbContext (SQLite) - connection string from configuration
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=taskflow.db";
+builder.Services.AddDbContext<TaskFlowDbContext>(options =>
+    options.UseSqlite(connectionString));
 
 var app = builder.Build();
 
