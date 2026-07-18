@@ -16,6 +16,12 @@ paths:
     post:
       tags: [Projetos]
       summary: Criar um novo projeto
+      description: >-
+        Cria um projeto. O `id` é gerado automaticamente, o campo `createdAt`
+        é preenchido automaticamente em UTC e o `status` inicial é definido como
+        `active`. Esses campos (`id`, `status`, `createdAt`) não podem ser
+        enviados pelo cliente. O `name` é normalizado removendo espaços no início
+        e no final.
       operationId: criarProjeto
       requestBody:
         required: true
@@ -109,6 +115,16 @@ paths:
     patch:
       tags: [Projetos]
       summary: Atualizar parcialmente um projeto
+      description: >-
+        Atualiza somente os campos enviados; os campos omitidos permanecem
+        inalterados. Enviar `description: null` remove a descrição atual.
+        A alteração de `active` para `archived` é permitida somente quando o
+        projeto não possui tarefas com status `in_progress`. A alteração de
+        `archived` para `active` é permitida. Reenviar o status atual é uma
+        operação idempotente. Projetos arquivados ainda permitem alterações
+        de nome e descrição. O nome deve ser único globalmente, ignorando
+        diferenças entre letras maiúsculas e minúsculas e espaços no início
+        e no final.
       operationId: atualizarProjeto
       requestBody:
         required: true
@@ -128,7 +144,7 @@ paths:
         '404':
           $ref: '#/components/responses/ProjectNotFound'
         '409':
-          $ref: '#/components/responses/ProjectNameConflict'
+          $ref: '#/components/responses/ProjectNameConflictOnUpdate'
         '422':
           $ref: '#/components/responses/ProjectHasInProgressTasks'
 
@@ -139,6 +155,14 @@ paths:
     post:
       tags: [Tarefas]
       summary: Criar tarefa para um projeto
+      description: >-
+        Cria uma tarefa para o projeto informado. O `id` é gerado automaticamente,
+        o campo `createdAt` é preenchido automaticamente em UTC e o `status` inicial
+        é definido como `pending`. O campo `completedAt` inicia como `null` e o
+        `projectId` é obtido a partir do parâmetro de rota. Os campos `id`, `status`,
+        `createdAt`, `completedAt` e `projectId` não podem ser enviados pelo
+        cliente. O `title` é normalizado removendo espaços no início e no final.
+        Não é permitido criar tarefas em um projeto arquivado.
       operationId: criarTarefa
       requestBody:
         required: true
@@ -173,7 +197,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/ProjectNotFound'
+          $ref: '#/components/responses/ProjectNotFoundForTaskCollection'
         '409':
           $ref: '#/components/responses/TaskTitleConflict'
         '422':
@@ -209,7 +233,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
-          $ref: '#/components/responses/ProjectNotFound'
+          $ref: '#/components/responses/ProjectNotFoundForTaskCollection'
 
   /tarefas/{id}:
     parameters:
@@ -218,6 +242,21 @@ paths:
     patch:
       tags: [Tarefas]
       summary: Atualizar parcialmente uma tarefa
+      description: >-
+        Atualiza somente os campos enviados; os campos omitidos permanecem
+        inalterados. Enviar `description: null` remove a descrição atual.
+        O fluxo obrigatório de status é `pending` para `in_progress` e depois
+        para `done`, sem saltos ou retrocessos. Reenviar `pending` ou
+        `in_progress` para uma tarefa que já possui o mesmo status é uma
+        operação idempotente. Na alteração de `in_progress` para `done`,
+        `completedAt` é preenchido automaticamente com o horário atual em UTC
+        e não pode ser informado pelo cliente. Tarefas com status `done` são
+        imutáveis, exceto pelo reenvio isolado de `{ "status": "done" }`, que
+        é idempotente e preserva o valor original de `completedAt`. O envio
+        desse status junto com qualquer outro campo para uma tarefa concluída
+        retorna `422`. O título deve ser único dentro do respectivo projeto,
+        ignorando diferenças entre letras maiúsculas e minúsculas e espaços
+        no início e no final.
       operationId: atualizarTarefa
       requestBody:
         required: true
@@ -237,9 +276,9 @@ paths:
         '404':
           $ref: '#/components/responses/TaskNotFound'
         '409':
-          $ref: '#/components/responses/TaskTitleConflict'
+          $ref: '#/components/responses/TaskTitleConflictOnUpdate'
         '422':
-          $ref: '#/components/responses/InvalidTaskStatusTransition'
+          $ref: '#/components/responses/TaskUpdateBusinessRuleViolation'
 
     delete:
       tags: [Tarefas]
@@ -293,7 +332,7 @@ components:
         - project_name_conflict
         - task_title_conflict
 
-    ProblemDetailsBase:
+    ProblemDetails:
       type: object
       description: Estrutura base para erros conforme RFC 7807 com campo `code`.
       properties:
@@ -315,7 +354,7 @@ components:
 
     ValidationProblemDetails:
       allOf:
-        - $ref: '#/components/schemas/ProblemDetailsBase'
+        - $ref: '#/components/schemas/ProblemDetails'
         - type: object
           properties:
             errors:
@@ -334,7 +373,10 @@ components:
           type: string
           minLength: 1
           maxLength: 100
-          description: Nome do projeto (será normalizado removendo espaços iniciais e finais)
+          pattern: '.*\S.*'
+          description: >-
+            Nome do projeto. Deve conter ao menos um caractere diferente de
+            espaço e será normalizado removendo espaços no início e no final.
         description:
           type: string
           nullable: true
@@ -350,6 +392,10 @@ components:
           type: string
           minLength: 1
           maxLength: 100
+          pattern: '.*\S.*'
+          description: >-
+            Novo nome do projeto. Deve conter ao menos um caractere diferente
+            de espaço e será normalizado removendo espaços no início e no final.
         description:
           type: string
           nullable: true
@@ -365,6 +411,11 @@ components:
           readOnly: true
         name:
           type: string
+          minLength: 1
+          maxLength: 100
+          pattern: '.*\S.*'
+          description: >-
+            Nome do projeto normalizado removendo espaços no início e no final.
         description:
           type: string
           nullable: true
@@ -374,7 +425,8 @@ components:
           type: string
           format: date-time
           readOnly: true
-      required: [id, name, status, createdAt]
+          description: Gerado pela aplicação em UTC.
+      required: [id, name, description, status, createdAt]
       additionalProperties: false
 
     CreateTaskRequest:
@@ -384,7 +436,10 @@ components:
           type: string
           minLength: 1
           maxLength: 200
-          description: Título da tarefa (será normalizado removendo espaços iniciais e finais)
+          pattern: '.*\S.*'
+          description: >-
+            Título da tarefa. Deve conter ao menos um caractere diferente de
+            espaço e será normalizado removendo espaços no início e no final.
         description:
           type: string
           nullable: true
@@ -402,6 +457,10 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+          pattern: '.*\S.*'
+          description: >-
+            Novo título da tarefa. Deve conter ao menos um caractere diferente
+            de espaço e será normalizado removendo espaços no início e no final.
         description:
           type: string
           nullable: true
@@ -419,6 +478,11 @@ components:
           readOnly: true
         title:
           type: string
+          minLength: 1
+          maxLength: 200
+          pattern: '.*\S.*'
+          description: >-
+            Título da tarefa normalizado removendo espaços no início e no final.
         description:
           type: string
           nullable: true
@@ -430,16 +494,21 @@ components:
           type: string
           format: date-time
           readOnly: true
+          description: Gerado pela aplicação em UTC.
         completedAt:
           type: string
           format: date-time
           nullable: true
           readOnly: true
+          description: >-
+            Preenchido automaticamente em UTC quando a tarefa passa de
+            in_progress para done. Permanece null enquanto a tarefa não estiver
+            concluída.
         projectId:
           type: string
           format: uuid
           readOnly: true
-      required: [id, title, status, priority, createdAt, projectId]
+      required: [id, title, description, status, priority, createdAt, completedAt, projectId]
       additionalProperties: false
 
   responses:
@@ -450,23 +519,132 @@ components:
           schema:
             $ref: '#/components/schemas/ValidationProblemDetails'
           examples:
-            json-invalido:
+            corpo-patch-vazio:
               value:
                 type: 'about:blank'
                 title: 'Dados de entrada inválidos'
                 status: 400
-                detail: 'JSON inválido ou campos ausentes/inválidos.'
+                detail: 'PATCH não pode ser enviado com corpo vazio.'
+                instance: '/projetos/3fa85f64-5717-4562-b3fc-2c963f66afa6'
+                code: validation_error
+                errors:
+                  requestBody: ['O corpo da requisição deve conter ao menos um campo válido.']
+            propriedade-nao-permitida:
+              value:
+                type: 'about:blank'
+                title: 'Propriedade não permitida'
+                status: 400
+                detail: 'A requisição contém uma propriedade que não é permitida pelo schema.'
                 instance: '/projetos'
                 code: validation_error
                 errors:
-                  name: ['name não pode ser vazio']
+                  unexpectedField: ['A propriedade extra fornecida não é permitida.']
+            campo-controlado-pelo-sistema:
+              value:
+                type: 'about:blank'
+                title: 'Campo controlado pelo sistema enviado'
+                status: 400
+                detail: 'Campos gerados pela aplicação não podem ser enviados pelo cliente.'
+                instance: '/projetos'
+                code: validation_error
+                errors:
+                  id: ['O campo id não pode ser enviado.']
+                  createdAt: ['O campo createdAt não pode ser enviado.']
+                  completedAt: ['O campo completedAt não pode ser enviado.']
+                  projectId: ['O campo projectId não pode ser enviado.']
+            uuid-invalido:
+              value:
+                type: 'about:blank'
+                title: 'UUID inválido'
+                status: 400
+                detail: 'O identificador fornecido na rota não é um UUID válido.'
+                instance: '/projetos/uuid-invalido'
+                code: validation_error
+                errors:
+                  id: ['O valor deve ser um UUID válido.']
+            filtro-invalido:
+              value:
+                type: 'about:blank'
+                title: 'Filtro inválido'
+                status: 400
+                detail: 'O valor do filtro fornecido não é válido.'
+                instance: '/projetos?status=invalid'
+                code: validation_error
+                errors:
+                  status: ['O valor deve ser um dos valores permitidos: active, archived.']
+            enum-invalido:
+              value:
+                type: 'about:blank'
+                title: 'Enum inválido'
+                status: 400
+                detail: 'O valor fornecido para o campo é inválido.'
+                instance: '/projetos'
+                code: validation_error
+                errors:
+                  status: ['O valor deve ser um dos valores permitidos: active, archived.']
+            nome-acima-do-limite:
+              value:
+                type: 'about:blank'
+                title: 'Valor acima do limite'
+                status: 400
+                detail: 'O valor do campo excede o limite de caracteres permitido.'
+                instance: '/projetos'
+                code: validation_error
+                errors:
+                  name: ['O campo name não pode exceder 100 caracteres.']
+            titulo-acima-do-limite:
+              value:
+                type: 'about:blank'
+                title: 'Valor acima do limite'
+                status: 400
+                detail: 'O valor do campo excede o limite de caracteres permitido.'
+                instance: '/projetos/3fa85f64-5717-4562-b3fc-2c963f66afa6/tarefas'
+                code: validation_error
+                errors:
+                  title: ['O campo title não pode exceder 200 caracteres.']
+            nome-so-espacos:
+              value:
+                type: 'about:blank'
+                title: 'Valor inválido'
+                status: 400
+                detail: 'O campo não pode ser vazio ou conter apenas espaços.'
+                instance: '/projetos'
+                code: validation_error
+                errors:
+                  name: ['O campo name não pode ser vazio ou conter apenas espaços.']
+            titulo-so-espacos:
+              value:
+                type: 'about:blank'
+                title: 'Valor inválido'
+                status: 400
+                detail: 'O campo não pode ser vazio ou conter apenas espaços.'
+                instance: '/projetos/3fa85f64-5717-4562-b3fc-2c963f66afa6/tarefas'
+                code: validation_error
+                errors:
+                  title: ['O campo title não pode ser vazio ou conter apenas espaços.']
+
+    ProjectNameConflictOnUpdate:
+      description: Nome de projeto já existe
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            exemplo:
+              value:
+                type: 'about:blank'
+                title: 'Conflito de nome de projeto'
+                status: 409
+                detail: 'Já existe um projeto com este nome.'
+                instance: '/projetos/3fa85f64-5717-4562-b3fc-2c963f66afa6'
+                code: project_name_conflict
 
     ProjectNotFound:
       description: Projeto não encontrado
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetailsBase'
+            $ref: '#/components/schemas/ProblemDetails'
           examples:
             exemplo:
               value:
@@ -474,7 +652,23 @@ components:
                 title: 'Projeto não encontrado'
                 status: 404
                 detail: 'Projeto com o id informado não foi encontrado.'
-                instance: '/projetos/{id}'
+                instance: '/projetos/3fa85f64-5717-4562-b3fc-2c963f66afa6'
+                code: project_not_found
+
+    ProjectNotFoundForTaskCollection:
+      description: Projeto não encontrado
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            exemplo:
+              value:
+                type: 'about:blank'
+                title: 'Projeto não encontrado'
+                status: 404
+                detail: 'Projeto com o id informado não foi encontrado.'
+                instance: '/projetos/3fa85f64-5717-4562-b3fc-2c963f66afa6/tarefas'
                 code: project_not_found
 
     TaskNotFound:
@@ -482,7 +676,7 @@ components:
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetailsBase'
+            $ref: '#/components/schemas/ProblemDetails'
           examples:
             exemplo:
               value:
@@ -490,7 +684,7 @@ components:
                 title: 'Tarefa não encontrada'
                 status: 404
                 detail: 'Tarefa com o id informado não foi encontrada.'
-                instance: '/tarefas/{id}'
+                instance: '/tarefas/d290f1ee-6c54-4b01-90e6-d701748f0851'
                 code: task_not_found
 
     ProjectNameConflict:
@@ -498,7 +692,7 @@ components:
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetailsBase'
+            $ref: '#/components/schemas/ProblemDetails'
           examples:
             exemplo:
               value:
@@ -514,7 +708,7 @@ components:
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetailsBase'
+            $ref: '#/components/schemas/ProblemDetails'
           examples:
             exemplo:
               value:
@@ -522,7 +716,23 @@ components:
                 title: 'Conflito de título de tarefa'
                 status: 409
                 detail: 'Já existe uma tarefa com este título neste projeto.'
-                instance: '/projetos/{id}/tarefas'
+                instance: '/projetos/3fa85f64-5717-4562-b3fc-2c963f66afa6/tarefas'
+                code: task_title_conflict
+
+    TaskTitleConflictOnUpdate:
+      description: Título de tarefa duplicado no projeto
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            exemplo:
+              value:
+                type: 'about:blank'
+                title: 'Conflito de título de tarefa'
+                status: 409
+                detail: 'Já existe uma tarefa com este título neste projeto.'
+                instance: '/tarefas/d290f1ee-6c54-4b01-90e6-d701748f0851'
                 code: task_title_conflict
 
     ProjectHasInProgressTasks:
@@ -530,7 +740,7 @@ components:
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetailsBase'
+            $ref: '#/components/schemas/ProblemDetails'
           examples:
             exemplo:
               value:
@@ -538,7 +748,7 @@ components:
                 title: 'Projeto possui tarefas em progresso'
                 status: 422
                 detail: 'Não é possível arquivar o projeto enquanto existirem tarefas em progresso.'
-                instance: '/projetos/{id}'
+                instance: '/projetos/3fa85f64-5717-4562-b3fc-2c963f66afa6'
                 code: project_has_in_progress_tasks
 
     ArchivedProjectDoesNotAcceptTasks:
@@ -546,7 +756,7 @@ components:
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetailsBase'
+            $ref: '#/components/schemas/ProblemDetails'
           examples:
             exemplo:
               value:
@@ -554,31 +764,46 @@ components:
                 title: 'Projeto arquivado'
                 status: 422
                 detail: 'Não é permitido criar tarefas em um projeto arquivado.'
-                instance: '/projetos/{id}/tarefas'
+                instance: '/projetos/3fa85f64-5717-4562-b3fc-2c963f66afa6/tarefas'
                 code: archived_project_does_not_accept_tasks
 
-    InvalidTaskStatusTransition:
-      description: Transição de status inválida
+    TaskUpdateBusinessRuleViolation:
+      description: Regra de negócio impede a atualização da tarefa
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetailsBase'
+            $ref: '#/components/schemas/ProblemDetails'
           examples:
-            exemplo:
+            transicao-invalida:
+              summary: Tentativa de pular uma etapa do fluxo de status
               value:
                 type: 'about:blank'
                 title: 'Transição de status inválida'
                 status: 422
-                detail: 'Transição de status não permitida pelo fluxo definido.'
-                instance: '/tarefas/{id}'
+                detail: >-
+                  Não é permitido alterar o status diretamente de pending para
+                  done. O fluxo obrigatório é pending, in_progress e done.
+                instance: '/tarefas/d290f1ee-6c54-4b01-90e6-d701748f0851'
                 code: invalid_task_status_transition
+
+            tarefa-concluida:
+              summary: Tentativa de modificar uma tarefa concluída
+              value:
+                type: 'about:blank'
+                title: 'Tarefa concluída não pode ser modificada'
+                status: 422
+                detail: >-
+                  Uma tarefa concluída não pode ter título, descrição,
+                  prioridade ou status modificados.
+                instance: '/tarefas/d290f1ee-6c54-4b01-90e6-d701748f0851'
+                code: completed_task_cannot_be_modified
 
     TaskCannotBeDeleted:
       description: Tarefa não pode ser excluída
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetailsBase'
+            $ref: '#/components/schemas/ProblemDetails'
           examples:
             exemplo:
               value:
@@ -586,26 +811,5 @@ components:
                 title: 'Tarefa não pode ser excluída'
                 status: 422
                 detail: 'Tarefas em progresso ou concluídas não podem ser excluídas.'
-                instance: '/tarefas/{id}'
+                instance: '/tarefas/d290f1ee-6c54-4b01-90e6-d701748f0851'
                 code: task_cannot_be_deleted
-
-    CompletedTaskCannotBeModified:
-      description: Tarefa concluída não pode ser modificada
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetailsBase'
-          examples:
-            exemplo:
-              value:
-                type: 'about:blank'
-                title: 'Tarefa concluída não pode ser modificada'
-                status: 422
-                detail: 'Tarefa em estado done não pode ser alterada.'
-                instance: '/tarefas/{id}'
-                code: completed_task_cannot_be_modified
-
-  examples:
-    ListaVazia:
-      summary: Exemplo de lista vazia
-      value: []

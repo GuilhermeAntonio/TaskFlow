@@ -478,3 +478,136 @@ Foi gerada a primeira versão completa do `openapi.yaml`, contendo os endpoints,
 ### Limitações
 
 A saída representa uma primeira versão produzida pela IA e deverá passar por revisão humana antes de ser considerada aprovada para orientar a implementação.
+
+
+## Prompt 004 — Definição dos schemas do contrato OpenAPI
+
+
+
+## PROMPT-003 — Geração da primeira versão completa do contrato OpenAPI
+
+- **Data:** 2026-07-17
+- **Ferramenta:** GitHub Copilot Chat
+- **Etapa:** Especificação
+- **Objetivo:** Gerar a primeira versão completa do contrato da API com base no enunciado e nas decisões registradas.
+
+### Prompt completo
+
+```text
+Revisando o arquivo openapi.yaml, identifiquei que precisa ser feito alguns ajustes.
+
+Nesse caso não é necessário criar um novo arquivo, apenas ajustar o que for solicitado. 
+
+1. Melhorar o response de erro 400
+
+O componente BadRequest atualmente possui somente um exemplo genérico.
+
+Para o BadRequest mantenha o schema ValidationProblemDetails e adicione exemplos nomeados para casos:
+
+- corpo vazio em uma requisição PATCH;
+- propriedade não permitida pelo schema;
+- envio de campo controlado pela aplicação, como id, createdAt, completedAt ou projectId;
+- UUID inválido no parâmetro de rota;
+- filtro inválido;
+- valor inválido para um enum;
+- nome ou título acima do limite máximo de caracteres;
+- nome ou título contendo somente espaços.
+
+Todos os exemplos devem utilizar:
+
+- content type application/problem+json;
+- status 400;
+- code validation_error;
+- campo errors com mensagens relacionadas ao erro demonstrado;
+- valores concretos no campo instance, sem placeholders como {id}.
+
+Não altere os responses 404, 409 e 422 que já foram separados por rota.
+
+2. Adicionar descrições nos endpoints de criação
+
+No POST /projetos, deixe explícito que:
+
+- id é gerado automaticamente;
+- createdAt é preenchido automaticamente em UTC;
+- status é definido inicialmente como active;
+- esses campos não podem ser enviados pelo cliente;
+- o nome é normalizado removendo espaços no início e no final.
+
+No POST /projetos/{id}/tarefas, deixe explícito que:
+
+- id é gerado automaticamente;
+- createdAt é preenchido automaticamente em UTC;
+- status é definido inicialmente como pending;
+- completedAt inicia como null;
+- projectId é obtido pelo parâmetro da rota;
+- esses campos não podem ser enviados pelo cliente;
+- o título é normalizado removendo espaços no início e no final;
+- não é permitido criar tarefas em um projeto arquivado.
+
+3. Documentar os campos de data
+
+Adicione descrições nos schemas de resposta informando que:
+
+- ProjectResponse.createdAt é gerado pela aplicação em UTC;
+- TaskResponse.createdAt é gerado pela aplicação em UTC;
+- TaskResponse.completedAt é preenchido automaticamente em UTC quando a tarefa passa de in_progress para done;
+- completedAt permanece null enquanto a tarefa não estiver concluída;
+- esses campos são somente leitura.
+
+4. Reforçar as restrições nos schemas de resposta
+
+No ProjectResponse.name, adicione as restrições compatíveis com o request:
+
+- minLength 1;
+- maxLength 100;
+- pattern para impedir strings formadas somente por espaços.
+
+No TaskResponse.title, adicione:
+
+- minLength 1;
+- maxLength 200;
+- pattern para impedir strings formadas somente por espaços.
+
+Não remova os campos required já definidos nos schemas de resposta.
+
+5. Restrições gerais
+
+Não crie novos endpoints.
+
+Não adicione autenticação, paginação, servidor, banco de dados, migrations, deploy ou tecnologias que não façam parte do contrato atual.
+
+Não altere as regras de transição de status.
+
+Não altere o comportamento idempotente dos PATCH.
+
+Não altere os nomes dos códigos de erro existentes.
+
+Não altere os UUIDs usados nos exemplos atuais.
+
+Não modifique os arquivos ai/prompts.md, ai/revisoes.md ou docs/decisoes.md.
+
+Não defina uma ordenação para as listagens, pois essa decisão ainda será analisada separadamente.
+
+Não faça commit.
+
+Antes de finalizar, confira:
+
+- se todos os $ref apontam para componentes existentes;
+- se nenhum instance possui {id};
+- se não existem componentes sem uso;
+- se a indentação do YAML permanece válida;
+- se não foram introduzidos espaços no final das linhas.
+```
+
+### Resultado produzido
+
+Foi gerada uma segunda versão completa do `openapi.yaml`, contendo os endpoints, schemas, parâmetros, responses, exemplos e contratos de erro da API TaskFlow.
+
+### Arquivos relacionados
+
+- `openapi.yaml`;
+- `docs/decisoes.md`.
+
+### Limitações
+
+A saída representa uma segunda versão produzida pela IA para realizar ajustes que foram identificados na primeira versão, e deverá passar por revisão humana antes de ser considerada aprovada para orientar a implementação.
