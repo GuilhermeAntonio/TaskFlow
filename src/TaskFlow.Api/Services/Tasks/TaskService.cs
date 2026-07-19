@@ -22,10 +22,25 @@ namespace TaskFlow.Api.Services.Tasks
 
         public async Task<TaskResponse> CreateAsync(Guid projectId, CreateTaskRequest request, CancellationToken cancellationToken)
         {
+
             var trimmedTitle = ValidateAndTrimTitle(request.Title);
             var normalizedTitle = Normalize(trimmedTitle);
 
-            var project = await _dbContext.Projects.FirstOrDefaultAsync(p => p.Id == projectId, cancellationToken);
+            var priority = request.Priority
+                ?? throw new ValidationException(
+                    "O campo priority é obrigatório.",
+                    new Dictionary<string, string[]>
+                    {
+                        ["priority"] = new[]
+                        {
+                            "O campo priority é obrigatório."
+                        }
+                    });
+
+            var project = await _dbContext.Projects
+                .FirstOrDefaultAsync(
+                    project => project.Id == projectId,
+                    cancellationToken);
             if (project is null)
             {
                 throw new NotFoundException($"Projeto com id '{projectId}' não foi encontrado.", "project_not_found");
@@ -45,7 +60,7 @@ namespace TaskFlow.Api.Services.Tasks
                 Title = trimmedTitle,
                 NormalizedTitle = normalizedTitle,
                 Description = request.Description,
-                Priority = request.Priority,
+                Priority = priority,
                 Status = TaskItemStatus.Pending,
                 CreatedAt = DateTime.UtcNow,
                 ProjectId = projectId
@@ -68,30 +83,49 @@ namespace TaskFlow.Api.Services.Tasks
             return TaskResponse.FromEntity(task);
         }
 
-        public async Task<IReadOnlyList<TaskResponse>> ListAsync(Guid projectId, TaskItemStatus? status, TaskPriority? priority, CancellationToken cancellationToken)
+        public async Task<IReadOnlyList<TaskResponse>> ListAsync(
+            Guid projectId,
+            TaskItemStatus? status,
+            TaskPriority? priority,
+            CancellationToken cancellationToken)
         {
+            var projectExists = await _dbContext.Projects
+                .AsNoTracking()
+                .AnyAsync(
+                    project => project.Id == projectId,
+                    cancellationToken);
+
+            if (!projectExists)
+            {
+                throw new NotFoundException(
+                    $"Projeto com id '{projectId}' não foi encontrado.",
+                    "project_not_found");
+            }
+
             var query = _dbContext.TaskItems
                 .AsNoTracking()
-                .Where(t => t.ProjectId == projectId)
-                .AsQueryable();
+                .Where(task => task.ProjectId == projectId);
 
             if (status.HasValue)
             {
-                query = query.Where(t => t.Status == status.Value);
+                query = query.Where(task => task.Status == status.Value);
             }
 
             if (priority.HasValue)
             {
-                query = query.Where(t => t.Priority == priority.Value);
+                query = query.Where(task => task.Priority == priority.Value);
             }
 
-            var list = await query.ToListAsync(cancellationToken);
-            return list.Select(TaskResponse.FromEntity).ToList();
+            var tasks = await query.ToListAsync(cancellationToken);
+
+            return tasks
+                .Select(TaskResponse.FromEntity)
+                .ToList();
         }
 
         public async Task<TaskResponse> PatchAsync(Guid id, UpdateTaskRequest request, CancellationToken cancellationToken)
         {
-            if (!request.Title.HasValue && !request.Description.HasValue && !request.Status.HasValue)
+            if (!request.Title.HasValue && !request.Description.HasValue && !request.Status.HasValue && !request.Priority.HasValue)
             {
                 throw new ValidationException(
                     "O corpo da requisição PATCH deve conter ao menos um campo para atualização.",
@@ -107,19 +141,23 @@ namespace TaskFlow.Api.Services.Tasks
                 throw new NotFoundException($"Tarefa com id '{id}' não foi encontrada.", "task_not_found");
             }
 
-            // Completed tasks are immutable except idempotent status re-send
             if (task.Status == TaskItemStatus.Done)
             {
-                var modifyingOtherFields = (request.Title.HasValue && request.Title.Value is not null)
-                    || (request.Description.HasValue)
-                    || (request.Status.HasValue && request.Status.Value != TaskItemStatus.Done);
+                var isIsolatedDoneStatus =
+                    request.Status.HasValue &&
+                    request.Status.Value == TaskItemStatus.Done &&
+                    !request.Title.HasValue &&
+                    !request.Description.HasValue &&
+                    !request.Priority.HasValue;
 
-                if (modifyingOtherFields)
+                if (!isIsolatedDoneStatus)
                 {
                     throw new BusinessRuleViolationException(
                         "Tarefa concluída não pode ser modificada.",
                         "completed_task_cannot_be_modified");
                 }
+
+                return TaskResponse.FromEntity(task);
             }
 
             if (request.Title.HasValue)
@@ -138,7 +176,12 @@ namespace TaskFlow.Api.Services.Tasks
 
             if (request.Description.HasValue)
             {
-                task.Description = request.Description.Value; // may be null -> clear
+                task.Description = request.Description.Value;
+            }
+
+            if (request.Priority.HasValue)
+            {
+                task.Priority = request.Priority.Value;
             }
 
             if (request.Status.HasValue)

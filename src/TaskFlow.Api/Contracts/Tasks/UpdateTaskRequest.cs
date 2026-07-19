@@ -14,5 +14,8 @@ namespace TaskFlow.Api.Contracts.Tasks
 
         [JsonPropertyName("status")]
         public OptionalField<TaskItemStatus> Status { get; set; }
+
+        [JsonPropertyName("priority")]
+        public OptionalField<TaskPriority> Priority { get; set; }
     }
 }

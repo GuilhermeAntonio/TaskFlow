@@ -434,4 +434,86 @@ A compilação bem-sucedida confirmou a validade sintática da implementação, 
 
 #### Ação realizada
 
-A saída inicial da IA foi preservada no commit `26d8616`. As correções identificadas nesta revisão serão realizadas manualmente e validadas antes da conclusão deste registro.
+A saída inicial da IA foi preservada no commit `26d8616`. Após a preservação, as correções identificadas foram realizadas manualmente, compiladas e validadas antes da conclusão deste registro.
+
+---
+
+### Revisão da API de tarefas
+
+- **ID:** Revisao-20260719-007
+- **Data:** 2026-07-19
+- **Revisor:** Guilherme Bezerra Antonio
+- **Origem:** API de tarefas gerada pelo GitHub Copilot Chat a partir do `PROMPT-008`
+- **Versão revisada:** Commit `6add161`
+- **Decisão:** Corrigida
+
+#### Partes aceitas
+
+- separação entre contratos HTTP, Controller, Service, domínio e persistência;
+- criação de contratos específicos para criação, atualização e resposta de tarefas;
+- criação de `TasksController`, `ITaskService` e `TaskService`;
+- registro do serviço no contêiner de injeção de dependência;
+- utilização direta de `TaskFlowDbContext`, sem introdução de repositórios;
+- normalização do título removendo espaços externos;
+- validação do tamanho máximo de 200 caracteres;
+- verificação de unicidade do título dentro do respectivo projeto;
+- permissão do mesmo título em projetos diferentes;
+- utilização do índice único como segunda proteção contra concorrência;
+- bloqueio da criação de tarefas em projetos arquivados;
+- definição automática do status inicial como `pending`;
+- preenchimento automático de `createdAt` em UTC;
+- suporte aos filtros opcionais de status e prioridade;
+- utilização de `AsNoTracking` na listagem;
+- implementação das transições sequenciais de status;
+- preenchimento automático de `completedAt` na conclusão;
+- exclusão permitida somente para tarefas com status `pending`;
+- propagação de `CancellationToken`;
+- ausência de migrations e testes automatizados fora do escopo deste ciclo.
+
+#### Partes corrigidas
+
+- tornar o campo `priority` efetivamente obrigatório na criação, evitando que sua ausência seja interpretada como `low`;
+- adicionar `priority` ao contrato de atualização parcial;
+- considerar `priority` na validação de PATCH sem campos;
+- implementar a atualização de prioridade no serviço;
+- corrigir a verificação de imutabilidade de tarefas concluídas para permitir exclusivamente o reenvio isolado de `{ "status": "done" }`;
+- retornar `completed_task_cannot_be_modified` para qualquer outro campo enviado a uma tarefa concluída;
+- verificar a existência do projeto antes de listar suas tarefas;
+- retornar `404 project_not_found` quando a coleção solicitada pertencer a um projeto inexistente;
+- remover a utilização de `CreatedAtRoute` vinculada à rota inexistente `GetTaskById`;
+- retornar `201 Created` com o corpo da tarefa sem criar um endpoint não previsto no contrato;
+- revisar a aderência das respostas de erro ao `openapi.yaml`;
+
+#### Partes rejeitadas
+
+- a rota nomeada `GetTaskById` foi rejeitada porque não existe endpoint de consulta individual de tarefa no contrato;
+- a criação de um novo endpoint `GET /tarefas/{id}` foi rejeitada por estar fora do escopo definido no `openapi.yaml`;
+- a interpretação automática da ausência de `priority` como `low` foi rejeitada porque o campo é obrigatório;
+- a imutabilidade parcial de tarefas concluídas foi rejeitada porque os artefatos permitem somente o reenvio isolado de `status: done`.
+
+#### Validações iniciais realizadas
+
+Foram executados:
+
+```text
+git diff --check
+dotnet restore TaskFlow.sln
+dotnet build TaskFlow.sln
+```
+
+Resultado inicial da geração:
+
+```text
+0 Aviso(s)
+0 Erro(s)
+```
+
+A compilação bem-sucedida confirmou a validade sintática da implementação, mas não foi considerada suficiente para comprovar sua aderência ao contrato.
+
+Também foi confirmado que nenhuma migration ou estrutura de testes automatizados foi criada.
+
+#### Ação realizada
+
+A saída inicial da IA foi preservada no commit `6add161`.
+
+Após a preservação, as divergências identificadas foram corrigidas manualmente. A implementação foi restaurada e compilada com sucesso, sem avisos ou erros. Também foi confirmado que não existem alterações pendentes no modelo do EF Core.

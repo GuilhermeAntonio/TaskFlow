@@ -16,10 +16,17 @@ namespace TaskFlow.Api.Controllers
         }
 
         [HttpPost("/projetos/{projectId:guid}/tarefas")]
-        public async Task<IActionResult> CreateAsync(Guid projectId, [FromBody] CreateTaskRequest request, CancellationToken cancellationToken)
+        public async Task<IActionResult> CreateAsync(
+            Guid projectId,
+            [FromBody] CreateTaskRequest request,
+            CancellationToken cancellationToken)
         {
-            var task = await _taskService.CreateAsync(projectId, request, cancellationToken);
-            return CreatedAtRoute("GetTaskById", new { id = task.Id }, task);
+            var task = await _taskService.CreateAsync(
+                projectId,
+                request,
+                cancellationToken);
+
+            return StatusCode(StatusCodes.Status201Created, task);
         }
 
         [HttpGet("/projetos/{projectId:guid}/tarefas")]
