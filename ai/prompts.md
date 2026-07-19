@@ -1191,7 +1191,6 @@ Este ciclo implementa exclusivamente a API de projetos. A API de tarefas e os te
 - **Objetivo:** Implementar a API de tarefas com base nos artefatos SDD existentes.
 - **Resultado esperado:** Implementação inicial da API de tarefas para posterior revisão humana.
 - **Status:** Executado
-- **Confiança inicial:** Média
 
 #### Prompt utilizado
 
@@ -1313,3 +1312,160 @@ Somente tarefas com status pending podem ser excluídas.
 
 Essa regra já está definida nos artefatos do projeto. Prossiga com a implementação mantendo openapi.yaml e docs/decisoes.md como fontes de verdade.
 ```
+
+---
+
+### PROMPT-009 — Testes de integração e aderência ao contrato
+
+- **Data:** 2026-07-19
+- **Ferramenta:** GitHub Copilot Chat
+- **Modelo:** GPT-5 mini
+- **Objetivo:** Implementar os testes automatizados e comprovar a aderência da API ao contrato OpenAPI.
+- **Resultado esperado:** Projeto de testes de integração e contrato para posterior revisão humana.
+- **Status:** Executado com falha de compilação
+
+#### Prompt utilizado
+
+```text
+Atue como um engenheiro de software responsável pela validação da aderência do projeto TaskFlow.
+
+Antes de alterar qualquer arquivo, leia integralmente:
+
+- openapi.yaml
+- docs/decisoes.md
+- ai/skills.md
+- a implementação existente em src/TaskFlow.Api
+- a solução TaskFlow.sln
+
+Considere openapi.yaml e docs/decisoes.md como fontes de verdade. Os testes devem comprovar que a implementação segue esses artefatos, e não adaptar os artefatos ao comportamento atual do código.
+
+Crie o projeto:
+
+tests/TaskFlow.ContractTests
+
+Adicione-o à solução TaskFlow.sln.
+
+Utilize:
+
+- .NET 8;
+- xUnit;
+- WebApplicationFactory;
+- System.Net.Http.Json;
+- Microsoft.OpenApi;
+- NJsonSchema.
+
+Implemente testes de integração executando a aplicação em memória por meio de WebApplicationFactory.
+
+Derive do openapi.yaml e do docs/decisoes.md uma matriz de cenários para todos os endpoints atualmente especificados e implementados.
+
+Os testes devem cobrir, no mínimo:
+
+- criação válida de recursos;
+- recursos inexistentes com retorno 404;
+- regras de negócio com retorno 422;
+- validações de entrada com retorno 400;
+- conflitos de unicidade com retorno 409;
+- exclusões válidas com retorno 204;
+- filtros e atualizações parciais;
+- transições e comportamentos idempotentes definidos nos artefatos;
+- respostas ProblemDetails e ValidationProblemDetails;
+- códigos estáveis presentes na extensão code.
+
+Além das asserções funcionais, valide os corpos JSON das respostas contra o schema correspondente à operação e ao status HTTP definidos no openapi.yaml.
+
+Não duplique manualmente os schemas OpenAPI dentro dos testes. Leia e resolva o documento versionado no repositório utilizando Microsoft.OpenApi e NJsonSchema.
+
+A validação contratual deve considerar:
+
+- operação e path executados;
+- status HTTP retornado;
+- Content-Type;
+- schema da resposta correspondente;
+- propriedades obrigatórias;
+- tipos e formatos;
+- additionalProperties;
+- enums;
+- campos ProblemDetails e o código estável de erro.
+
+Utilize persistência SQLite isolada para os testes.
+
+Os testes não podem utilizar, modificar ou depender do arquivo local taskflow.db. Cada execução deve começar em estado conhecido e não depender da ordem dos testes.
+
+Mantenha os testes determinísticos, independentes e legíveis. Organize-os de forma simples, separando:
+
+- fixture da aplicação;
+- infraestrutura de validação do OpenAPI;
+- testes de projetos;
+- testes de tarefas;
+- helpers estritamente necessários.
+
+Não adicione mocks das regras centrais, repositórios, Docker, serviços externos, GitHub Actions ou novas camadas.
+
+Não altere openapi.yaml ou docs/decisoes.md.
+
+Não altere o comportamento da API apenas para fazer os testes passarem. Mudanças no código de produção são permitidas somente quando estritamente necessárias para viabilizar WebApplicationFactory ou o isolamento da persistência, como a exposição do tipo Program. Toda alteração desse tipo deve ser informada ao final.
+
+Adicione comentários apenas quando forem necessários para explicar uma decisão não óbvia, uma limitação técnica, a estratégia de isolamento do banco, a resolução do schema OpenAPI ou um comportamento relevante do teste.
+
+Não adicione comentários que apenas repitam o que o código já expressa claramente.
+
+Preserve comentários úteis gerados na implementação inicial para que possam ser avaliados durante a revisão humana.
+
+Não crie endpoints adicionais.
+
+Antes de implementar, apresente resumidamente:
+
+1. a matriz de operações e categorias de teste identificadas;
+2. os arquivos que pretende criar ou alterar;
+3. a estratégia de isolamento do SQLite;
+4. a estratégia para localizar e validar o openapi.yaml;
+5. ambiguidades ou divergências encontradas.
+
+Depois dessa análise, prossiga com a implementação sem aguardar nova confirmação, exceto caso exista uma ambiguidade real que impeça uma decisão aderente aos artefatos.
+
+Ao concluir:
+
+1. execute dotnet restore TaskFlow.sln;
+2. execute dotnet build TaskFlow.sln;
+3. execute dotnet test tests/TaskFlow.ContractTests;
+4. corrija apenas erros de compilação ou infraestrutura produzidos pela geração;
+5. não altere regras de negócio para forçar testes a passar;
+6. não execute comandos Git;
+7. não altere arquivos da pasta ai;
+8. informe todos os arquivos criados e alterados;
+9. informe a quantidade de testes executados, aprovados e reprovados;
+10. informe riscos, limitações e possíveis divergências encontradas.
+```
+
+#### Resultado obtido
+
+O GitHub Copilot criou o projeto `tests/TaskFlow.ContractTests`, adicionou-o à solução e gerou:
+
+- `TaskFlowApiFactory.cs`;
+- `OpenApiDocumentFixture.cs`;
+- `OpenApiResponseValidator.cs`;
+- `ProjectTests.cs`;
+- `TaskTests.cs`;
+- `TaskFlow.ContractTests.csproj`.
+
+Também adicionou `public partial class Program` ao projeto da API para permitir a inicialização por meio de `WebApplicationFactory`.
+
+A geração inicial conseguiu restaurar os pacotes, mas não compilou.
+
+Resultado:
+
+```text
+2 Aviso(s)
+2 Erro(s)
+```
+
+Erros identificados:
+
+```text
+CS1503: não é possível converter de object para string
+CS0200: JsonSchema.ActualSchema é somente leitura
+```
+
+Os erros foram produzidos pela implementação inicial da validação OpenAPI com NJsonSchema. Como a compilação falhou, nenhum teste automatizado foi executado.
+
+A execução do agente foi interrompida antes da criação de um projeto temporário de inspeção. Nenhuma correção manual foi realizada antes da preservação desta saída.

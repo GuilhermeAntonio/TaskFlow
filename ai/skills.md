@@ -66,3 +66,16 @@ O nível de confiança representa a expectativa inicial sobre a confiabilidade d
 - **Nível de confiança:** Médio
 - **Responsável humano pela revisão:** Guilherme Bezerra Antonio
 - **Restrições:** O refinamento gerado pela IA não é considerado aprovado automaticamente. O resultado deve passar por validação sintática, análise de consistência e nova revisão humana antes de orientar a implementação.
+
+## Habilidade: Sugestões inline para complementação de código e testes
+
+- **Ferramenta:** GitHub Copilot Inline Suggestions
+- **Modelo:** Gerenciado pelo GitHub Copilot, sem modelo especificado.
+- **Descrição:** Sugerir complementos de código diretamente no editor durante a implementação e o refinamento da suíte de testes, utilizando como contexto o arquivo aberto, o código próximo, os nomes dos métodos e os comentários escritos pelo desenvolvedor.
+- **Escopo:** Complementação de trechos de código, organização de testes, geração de assertions, preenchimento de chamadas HTTP, aplicação do padrão Arrange, Act e Assert e criação de comentários XML; sem autoridade para alterar requisitos, regras de negócio ou o contrato OpenAPI.
+- **Entradas:** Código existente no editor, comentários de orientação, nomes dos testes, padrões já presentes no projeto e contexto local disponibilizado pelo VS Code.
+- **Saída:** Sugestões inline de código apresentadas no editor, aceitas, ajustadas ou rejeitadas pelo responsável humano.
+- **Nível de confiança:** Alto
+- **Responsável humano pela revisão:** Guilherme Bezerra Antonio
+- **Justificativa do nível de confiança:** A habilidade foi utilizada somente em tarefas objetivas, locais, repetitivas e de baixo risco, cujos resultados eram facilmente verificáveis por inspeção, compilação e testes automatizados. As sugestões não eram aplicadas automaticamente, exigindo aceitação explícita do responsável humano.
+- **Restrições:** As sugestões inline são tratadas como propostas de implementação. Todo código aceito deve passar por revisão humana, compilação, execução dos testes automatizados e validação de aderência ao arquivo `openapi.yaml`. A ferramenta não possui autoridade para modificar decisões técnicas aprovadas nem para considerar uma alteração concluída apenas porque foi sugerida ou aceita no editor.

@@ -517,3 +517,118 @@ Também foi confirmado que nenhuma migration ou estrutura de testes automatizado
 A saída inicial da IA foi preservada no commit `6add161`.
 
 Após a preservação, as divergências identificadas foram corrigidas manualmente. A implementação foi restaurada e compilada com sucesso, sem avisos ou erros. Também foi confirmado que não existem alterações pendentes no modelo do EF Core.
+
+---
+
+### Revisão dos testes de contrato
+
+- **ID:** Revisao-20260719-008
+- **Data:** 2026-07-19
+- **Revisor:** Guilherme Bezerra Antonio
+- **Origem:** Testes de contrato gerados pelo GitHub Copilot Chat a partir do `PROMPT-009`
+- **Versão revisada:** Commit `83340ed`
+- **Decisão:** Aprovado após correções
+
+#### Partes aceitas
+
+- criação do projeto `tests/TaskFlow.ContractTests`;
+- inclusão do projeto de testes na solução;
+- utilização de xUnit e `WebApplicationFactory`;
+- separação entre fixture da aplicação, carregamento do OpenAPI, validador de responses e testes por recurso;
+- utilização de `System.Net.Http.Json`;
+- carregamento do arquivo `openapi.yaml` versionado no repositório;
+- localização dinâmica da raiz do repositório;
+- busca da operação OpenAPI por path e método HTTP;
+- validação do status HTTP e do tipo de conteúdo;
+- utilização de SQLite isolado por caminho fornecido à factory;
+- exposição de `Program` como classe parcial para viabilizar o `WebApplicationFactory`;
+- ausência de alterações no `openapi.yaml` e no `docs/decisoes.md`.
+
+#### Partes corrigidas
+
+- habilitação do contexto de tipos de referência anuláveis;
+- habilitação dos `ImplicitUsings` no projeto de testes;
+- correção da validação do NJsonSchema para utilizar o conteúdo JSON;
+- remoção da tentativa de atribuição à propriedade somente leitura `JsonSchema.ActualSchema`;
+- representação das propriedades convertidas por meio de referências válidas aos schemas;
+- remoção da criação manual de um provedor de serviços dentro de `ConfigureServices`;
+- substituição do `DbContext` da aplicação por um SQLite temporário e isolado para cada teste;
+- criação da estrutura do banco de testes por meio de `EnsureCreated`;
+- desabilitação do pool de conexões do SQLite para permitir a exclusão dos arquivos temporários;
+- exclusão dos arquivos `.db`, `.db-wal` e `.db-shm` ao encerrar cada factory;
+- validação das respostas `204 No Content` contra o contrato OpenAPI e contra a ausência efetiva de corpo;
+- padronização dos testes utilizando as etapas `Arrange`, `Act` e `Assert`;
+- padronização dos comentários XML dos métodos de teste;
+- ampliação da cobertura para criação de recursos, recursos inexistentes e regras de negócio.
+
+#### Partes rejeitadas
+
+- criação de projeto temporário apenas para inspecionar as APIs internas dos pacotes;
+- continuidade da execução automática baseada em tentativas sucessivas após os erros de compilação;
+- alteração das regras de negócio da aplicação para fazer os testes passarem.
+
+#### Validação inicial
+
+Foram executados:
+
+```text
+dotnet build TaskFlow.sln
+dotnet test tests/TaskFlow.ContractTests
+```
+
+Resultado inicial da compilação:
+
+```text
+2 Aviso(s)
+2 Erro(s)
+```
+
+Erros identificados:
+
+```text
+CS1503: não é possível converter de object para string
+CS0200: JsonSchema.ActualSchema é somente leitura
+```
+
+Como o projeto de testes não compilou inicialmente, nenhum teste automatizado foi executado nessa primeira versão.
+
+A saída inicial da IA foi preservada no commit `83340ed`.
+
+#### Cobertura final
+
+A suíte passou a conter 21 testes de integração e contrato, incluindo:
+
+- criação válida de projetos e tarefas com retorno `201`;
+- recursos inexistentes com retorno `404`;
+- regras de negócio com retorno `422`;
+- conflitos de unicidade com retorno `409`;
+- validações de entrada com retorno `400`;
+- operações válidas com retornos `200` e `204`;
+- validação das respostas contra o arquivo `openapi.yaml`.
+
+#### Validação final
+
+Foram executados:
+
+```text
+dotnet build TaskFlow.sln
+dotnet test tests/TaskFlow.ContractTests --no-build
+```
+
+Resultado da compilação:
+
+```text
+0 Aviso(s)
+0 Erro(s)
+```
+
+Resultado dos testes:
+
+```text
+Com falha: 0
+Aprovado: 21
+Ignorado: 0
+Total: 21
+```
+
+A implementação foi aprovada após as correções humanas. Não foram necessárias alterações nas regras de negócio da aplicação nem no contrato `openapi.yaml` para fazer os testes passarem.
