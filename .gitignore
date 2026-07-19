@@ -361,6 +361,8 @@ ASALocalRun/
 # Local SQLite database (TaskFlow)
 taskflow.db
 *.db
+*.db-shm
+*.db-wal
 
 # NVidia Nsight GPU debugger configuration file
 *.nvuser

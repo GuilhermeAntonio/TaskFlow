@@ -1180,3 +1180,136 @@ Após a implementação:
 ### Limitações
 
 Este ciclo implementa exclusivamente a API de projetos. A API de tarefas e os testes de contrato serão implementados em ciclos posteriores.
+
+---
+
+### PROMPT-008 — Implementação da API de tarefas
+
+- **Data:** 2026-07-19
+- **Ferramenta:** GitHub Copilot Chat
+- **Modelo:** GPT-5 mini
+- **Objetivo:** Implementar a API de tarefas com base nos artefatos SDD existentes.
+- **Resultado esperado:** Implementação inicial da API de tarefas para posterior revisão humana.
+- **Status:** Executado
+- **Confiança inicial:** Média
+
+#### Prompt utilizado
+
+```text
+Atue como um engenheiro de software responsável pela implementação da API de tarefas do projeto TaskFlow.
+
+Antes de alterar qualquer arquivo, leia integralmente:
+
+- openapi.yaml
+- docs/decisoes.md
+- ai/skills.md
+- a implementação atual em src/TaskFlow.Api
+
+Considere o openapi.yaml e o docs/decisoes.md como fontes de verdade. Não replique, simplifique ou altere as regras definidas nesses artefatos para adequá-las à implementação.
+
+Antes de alterar qualquer arquivo, verifique quais operações do openapi.yaml já estão implementadas e quais ainda estão ausentes, e desenvolva as novas seguindo os padrões adotados nas que já foram aplicadas.
+
+Considere como escopo deste ciclo somente os quatro endpoints de tarefas explicitamente indicados abaixo:
+
+- POST /projetos/{id}/tarefas
+- GET /projetos/{id}/tarefas
+- PATCH /tarefas/{id}
+- DELETE /tarefas/{id}
+
+Identifique no openapi.yaml e no docs/decisoes.md todas as regras, contratos, respostas HTTP e códigos de erro aplicáveis a esses endpoints.
+
+Não crie outros endpoints e não reimplemente os endpoints de projetos já existentes.
+
+Na API de projetos, faça somente ajustes estritamente necessários para manter a regra de arquivamento relacionada às tarefas em andamento.
+
+Utilize a implementação atual da API de projetos como referência para:
+
+- organização dos contratos, Controllers e Services;
+- validação das requisições;
+- serialização JSON;
+- tratamento com ProblemDetails;
+- acesso ao TaskFlowDbContext;
+- códigos estáveis de erro;
+- tratamento de conflitos de concorrência;
+- propagação de CancellationToken.
+
+Mantenha a arquitetura atual. Não adicione CQRS, MediatR, AutoMapper, repositórios genéricos ou novas camadas.
+
+Não implemente testes automatizados neste ciclo. Eles serão tratados na Etapa 3.
+
+Não altere openapi.yaml ou docs/decisoes.md.
+
+A entidade TaskItem, seus enums, sua configuração de persistência e sua migration já existem. Não crie uma nova migration, exceto se identificar uma divergência real entre o modelo atual e os artefatos. Nesse caso, não faça a alteração automaticamente: apenas informe a divergência ao final.
+
+Antes de implementar, apresente de forma resumida:
+
+1. os endpoints de tarefas identificados;
+2. as principais regras de negócio identificadas nos artefatos;
+3. os arquivos que pretende criar ou alterar;
+4. eventuais ambiguidades ou divergências encontradas.
+
+Depois dessa análise, implemente a API de tarefas seguindo os artefatos e o padrão existente no projeto.
+
+Ao terminar:
+
+1. execute dotnet restore TaskFlow.sln;
+2. execute dotnet build TaskFlow.sln;
+3. corrija somente erros de compilação causados pela implementação;
+4. não crie ou execute testes automatizados;
+5. não execute comandos Git;
+6. apresente os arquivos criados e alterados;
+7. informe as decisões técnicas tomadas;
+8. informe riscos, dúvidas ou divergências encontradas;
+9. informe explicitamente se nenhuma migration foi criada.
+```
+
+#### Resultado obtido
+
+O agente implementou a estrutura inicial da API de tarefas, criando:
+
+- contratos de criação, atualização e resposta;
+- `TasksController`;
+- interface `ITaskService`;
+- implementação `TaskService`;
+- registro do serviço no `Program.cs`.
+
+A geração foi restaurada e compilada com sucesso:
+
+```text
+dotnet restore TaskFlow.sln
+dotnet build TaskFlow.sln
+```
+
+Resultado:
+
+```text
+0 Aviso(s)
+0 Erro(s)
+```
+
+Não foram criadas migrations ou estruturas de testes automatizados.
+
+#### Interação complementar
+
+Durante a execução, o agente solicitou confirmação sobre a regra de exclusão de tarefas.
+
+**Pergunta do agente:**
+
+```text
+Solicito confirmação rápida sobre o DELETE: qual a regra exata que gera task_cannot_be_deleted?
+
+Opção A: impedir exclusão se status == in_progress, mas permitir pending e done.
+Opção B: impedir exclusão se status == done.
+Opção C: impedir exclusão se status == in_progress ou done.
+Opção D: permitir exclusão sempre.
+```
+
+**Resposta fornecida:**
+
+```text
+Opção C.
+
+Somente tarefas com status pending podem ser excluídas.
+
+Essa regra já está definida nos artefatos do projeto. Prossiga com a implementação mantendo openapi.yaml e docs/decisoes.md como fontes de verdade.
+```
