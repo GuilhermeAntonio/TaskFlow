@@ -28,17 +28,25 @@ namespace TaskFlow.ContractTests
                     $"Expected status code {expectedStatusCode} but received {(int)response.StatusCode}.");
             }
 
+            var responseDefinition = _fixture.GetResponse(requestPath,operationType,expectedStatusCode.ToString());
             if (expectedStatusCode == StatusCodes.Status204NoContent)
             {
-                if (response.Content.Headers.ContentLength.GetValueOrDefault() > 0)
+                if (responseDefinition.Content.Count > 0)
                 {
-                    throw new InvalidOperationException("Expected no content for 204 response.");
+                    throw new InvalidOperationException(
+                        $"A resposta 204 de {operationType} {requestPath} não deveria definir conteúdo no contrato.");
+                }
+
+                var responseBody = await response.Content.ReadAsStringAsync();
+
+                if (responseBody.Length > 0)
+                {
+                    throw new InvalidOperationException(
+                        "A resposta 204 deveria possuir corpo vazio.");
                 }
 
                 return;
             }
-
-            var responseDefinition = _fixture.GetResponse(requestPath, operationType, expectedStatusCode.ToString());
             var mediaType = responseDefinition.Content.Keys.FirstOrDefault();
             if (mediaType is null)
             {
@@ -53,19 +61,25 @@ namespace TaskFlow.ContractTests
             }
 
             var content = await response.Content.ReadAsStringAsync();
-            var data = JsonSerializer.Deserialize<object>(content, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = false
-            });
-
-            if (data is null)
+            if (string.IsNullOrWhiteSpace(content))
             {
                 throw new InvalidOperationException("Resposta JSON inválida ou vazia.");
             }
 
+            try
+            {
+                using var document = JsonDocument.Parse(content);
+            }
+            catch (JsonException exception)
+            {
+                throw new InvalidOperationException(
+                    "Resposta JSON inválida.",
+                    exception);
+            }
+
             var schema = responseDefinition.Content[mediaType].Schema;
             var jsonSchema = ConvertSchema(schema);
-            var errors = jsonSchema.Validate(data);
+            var errors = jsonSchema.Validate(content);
             if (errors.Any())
             {
                 var message = string.Join("; ", errors.Select(error => error.ToString()));
@@ -156,11 +170,14 @@ namespace TaskFlow.ContractTests
 
             if (schema.Properties != null)
             {
-                foreach (var property in schema.Properties)
+               foreach (var property in schema.Properties)
                 {
+                    var convertedPropertySchema =
+                        ConvertSchemaInternal(property.Value, visited);
+
                     var propertySchema = new JsonSchemaProperty
                     {
-                        ActualSchema = ConvertSchemaInternal(property.Value, visited)
+                        Reference = convertedPropertySchema
                     };
 
                     result.Properties[property.Key] = propertySchema;
