@@ -349,3 +349,89 @@ Também foi confirmado que a migration ainda não foi aplicada e nenhum banco SQ
 #### Ação realizada
 
 A saída inicial da IA foi preservada no commit `7bfd217`. As correções foram realizadas manualmente e a migration foi regenerada após a estabilização do modelo.
+
+---
+
+### Revisão da API de projetos
+
+- **ID:** Revisao-20260718-006
+- **Data:** 2026-07-18
+- **Revisor:** Guilherme Bezerra Antonio
+- **Origem:** API de projetos gerada pelo GitHub Copilot Chat a partir do `PROMPT-007`
+- **Versão revisada:** Commit `26d8616`
+- **Decisão:** Corrigida
+
+#### Partes aceitas
+
+- Separação entre contratos HTTP, Controller, Service, domínio e persistência;
+- criação de DTOs específicos para criação, atualização e resposta de projetos;
+- utilização de `OptionalField<T>` para diferenciar propriedades omitidas de propriedades enviadas explicitamente no PATCH;
+- diferenciação entre `description` omitida e `description` enviada como `null`;
+- validação de PATCH sem campos para atualização;
+- implementação dos endpoints de criação, listagem, consulta por identificador e atualização de projetos;
+- retorno de `201 Created` com header `Location` por meio de rota nomeada e `CreatedAtRoute`;
+- utilização de `AsNoTracking` nas consultas somente de leitura;
+- propagação de `CancellationToken`;
+- normalização do nome do projeto;
+- verificação prévia de unicidade;
+- utilização do índice único do banco como segunda barreira contra conflitos de concorrência;
+- suporte ao filtro opcional por status;
+- permissão de reativação de projetos arquivados;
+- comportamento idempotente ao atualizar um projeto para o status atual;
+- bloqueio do arquivamento quando existem tarefas em andamento;
+- ausência de endpoints de tarefas e testes fora do escopo deste ciclo.
+
+#### Partes corrigidas
+
+- Inclusão da validação de tamanho máximo de 100 caracteres para o nome do projeto no POST e no PATCH;
+- substituição do formatter JSON personalizado pelo suporte nativo do .NET 8 para rejeição de propriedades desconhecidas;
+- remoção da interface `IJsonExtensionDataContainer`, que não possui utilização;
+- remoção da política personalizada de snake case em favor de `JsonNamingPolicy.SnakeCaseLower`;
+- remoção da configuração duplicada do converter de `OptionalField<T>`;
+- centralização das configurações de serialização JSON;
+- adoção de `AddProblemDetails`, `AddExceptionHandler` e `IExceptionHandler`;
+- correção do preenchimento de `type`, `detail` e `instance` nas respostas `ProblemDetails`;
+- associação dos códigos estáveis de erro às próprias exceções, evitando que exceções genéricas sejam vinculadas permanentemente a erros de projeto;
+- remoção do carregamento antecipado de todas as tarefas durante qualquer atualização de projeto;
+- utilização de `AnyAsync` somente quando houver uma tentativa real de arquivamento;
+- correção da atualização do nome quando houver alteração apenas de maiúsculas e minúsculas;
+- revisão da aderência dos títulos, detalhes e códigos de erro ao `openapi.yaml`.
+- correção da perda do `DateTimeKind.Utc` após a leitura das datas no SQLite;
+- criação de conversores de valor para preservar a interpretação UTC de `CreatedAt` e `CompletedAt`;
+- rejeição de valores numéricos para enums serializados como string;
+- validação explícita do filtro de status da listagem;
+- supressão do erro implícito e redundante de parâmetro obrigatório em falhas de desserialização;
+- rejeição de propriedades não previstas nos contratos de criação e atualização;
+- identificação do conflito de unicidade durante o `SaveChanges` pelo código estendido `2067` do SQLite e pela entidade `Project`;
+- substituição de `CreatedAtAction` por uma rota nomeada com `CreatedAtRoute`, evitando falha na geração do header `Location` após o `SaveChanges`;
+
+#### Partes rejeitadas
+
+- O formatter `RejectUnknownJsonPropertiesInputFormatter` foi rejeitado por duplicar um recurso nativo do .NET 8 e adicionar leitura manual do corpo, reflexão e desserialização adicional;
+- a interface `IJsonExtensionDataContainer` foi rejeitada por não possuir utilização na implementação;
+- a classe `SnakeCaseNamingPolicy` foi rejeitada por duplicar `JsonNamingPolicy.SnakeCaseLower`;
+- a configuração aninhada de `UseExceptionHandler` foi rejeitada por tornar o tratamento global de erros desnecessariamente complexo;
+- o carregamento de toda a coleção de tarefas em qualquer PATCH de projeto foi rejeitado por realizar uma consulta desnecessária quando somente nome ou descrição são atualizados.
+
+#### Validações iniciais realizadas
+
+Foram executados:
+
+```text
+git diff --check
+dotnet restore TaskFlow.sln
+dotnet build TaskFlow.sln
+```
+
+Resultado inicial da geração:
+
+```text
+0 Aviso(s)
+0 Erro(s)
+```
+
+A compilação bem-sucedida confirmou a validade sintática da implementação, mas não foi considerada suficiente para comprovar a aderência ao contrato.
+
+#### Ação realizada
+
+A saída inicial da IA foi preservada no commit `26d8616`. As correções identificadas nesta revisão serão realizadas manualmente e validadas antes da conclusão deste registro.

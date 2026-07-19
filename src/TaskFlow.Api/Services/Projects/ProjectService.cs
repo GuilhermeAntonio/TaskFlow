@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using TaskFlow.Api.Contracts.Projects;
 using TaskFlow.Api.Data;
@@ -9,6 +10,9 @@ namespace TaskFlow.Api.Services.Projects
 {
     public class ProjectService : IProjectService
     {
+        private const int ProjectNameMaxLength = 100;
+        private const int SqliteUniqueConstraintErrorCode = 2067;
+
         private readonly TaskFlowDbContext _dbContext;
 
         public ProjectService(TaskFlowDbContext dbContext)
@@ -18,17 +22,7 @@ namespace TaskFlow.Api.Services.Projects
 
         public async Task<ProjectResponse> CreateAsync(CreateProjectRequest request, CancellationToken cancellationToken)
         {
-            var trimmedName = request.Name.Trim();
-            if (string.IsNullOrWhiteSpace(trimmedName))
-            {
-                throw new ValidationException(
-                    "O campo name deve conter pelo menos um caractere diferente de espaço.",
-                    new Dictionary<string, string[]>
-                    {
-                        ["name"] = new[] { "O campo name deve conter pelo menos um caractere diferente de espaço." }
-                    });
-            }
-
+            var trimmedName = ValidateAndTrimName(request.Name);
             var normalizedName = Normalize(trimmedName);
             await EnsureUniqueNameAsync(normalizedName, cancellationToken);
 
@@ -46,9 +40,12 @@ namespace TaskFlow.Api.Services.Projects
             {
                 await _dbContext.SaveChangesAsync(cancellationToken);
             }
-            catch (DbUpdateException ex)
+            catch (DbUpdateException exception)
+                when (IsProjectNameUniqueConstraintViolation(exception))
             {
-                HandleUniqueConstraintConflict(ex);
+                throw new ConflictException(
+                    "Já existe um projeto com este nome.",
+                    "project_name_conflict");
             }
 
             return ProjectResponse.FromEntity(project);
@@ -69,10 +66,17 @@ namespace TaskFlow.Api.Services.Projects
 
         public async Task<ProjectResponse> GetByIdAsync(Guid id, CancellationToken cancellationToken)
         {
-            var project = await _dbContext.Projects.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+            var project = await _dbContext.Projects
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    project => project.Id == id,
+                    cancellationToken);
+
             if (project is null)
             {
-                throw new NotFoundException($"Projeto com id '{id}' não foi encontrado.");
+                throw new NotFoundException(
+                    $"Projeto com id '{id}' não foi encontrado.",
+                    "project_not_found");
             }
 
             return ProjectResponse.FromEntity(project);
@@ -90,32 +94,35 @@ namespace TaskFlow.Api.Services.Projects
                     });
             }
 
-            var project = await _dbContext.Projects.Include(p => p.Tasks).FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+            var project = await _dbContext.Projects
+                .FirstOrDefaultAsync(
+                    project => project.Id == id,
+                    cancellationToken);
             if (project is null)
             {
-                throw new NotFoundException($"Projeto com id '{id}' não foi encontrado.");
+                throw new NotFoundException(
+                    $"Projeto com id '{id}' não foi encontrado.",
+                    "project_not_found");
             }
 
             if (request.Name.HasValue)
             {
-                var trimmedName = request.Name.Value?.Trim() ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(trimmedName))
+                var trimmedName = ValidateAndTrimName(request.Name.Value);
+                var normalizedName = Normalize(trimmedName);
+
+                if (!string.Equals(
+                    project.NormalizedName,
+                    normalizedName,
+                    StringComparison.Ordinal))
                 {
-                    throw new ValidationException(
-                        "O campo name deve conter pelo menos um caractere diferente de espaço.",
-                        new Dictionary<string, string[]>
-                        {
-                            ["name"] = new[] { "O campo name deve conter pelo menos um caractere diferente de espaço." }
-                        });
+                    await EnsureUniqueNameAsync(
+                        normalizedName,
+                        cancellationToken,
+                        project.Id);
                 }
 
-                var normalizedName = Normalize(trimmedName);
-                if (!string.Equals(project.NormalizedName, normalizedName, StringComparison.Ordinal))
-                {
-                    await EnsureUniqueNameAsync(normalizedName, cancellationToken, project.Id);
-                    project.Name = trimmedName;
-                    project.NormalizedName = normalizedName;
-                }
+                project.Name = trimmedName;
+                project.NormalizedName = normalizedName;
             }
 
             if (request.Description.HasValue)
@@ -130,13 +137,20 @@ namespace TaskFlow.Api.Services.Projects
                 {
                     if (status == ProjectStatus.Archived)
                     {
-                        var hasInProgressTasks = project.Tasks.Any(t => t.Status == TaskItemStatus.InProgress);
+                        var hasInProgressTasks =
+                            await _dbContext.TaskItems.AnyAsync(
+                                task =>
+                                    task.ProjectId == project.Id &&
+                                    task.Status == TaskItemStatus.InProgress,
+                                cancellationToken);
+
                         if (hasInProgressTasks)
                         {
-                            throw new BusinessRuleViolationException("Não é possível arquivar o projeto enquanto existirem tarefas em progresso.");
+                            throw new BusinessRuleViolationException(
+                                "Não é possível arquivar o projeto enquanto existirem tarefas em progresso.",
+                                "project_has_in_progress_tasks");
                         }
                     }
-
                     project.Status = status;
                 }
             }
@@ -145,12 +159,48 @@ namespace TaskFlow.Api.Services.Projects
             {
                 await _dbContext.SaveChangesAsync(cancellationToken);
             }
-            catch (DbUpdateException ex)
+            catch (DbUpdateException exception)
+                when (IsProjectNameUniqueConstraintViolation(exception))
             {
-                HandleUniqueConstraintConflict(ex);
+                throw new ConflictException(
+                    "Já existe um projeto com este nome.",
+                    "project_name_conflict");
             }
 
             return ProjectResponse.FromEntity(project);
+        }
+
+        private static string ValidateAndTrimName(string? name)
+        {
+            var trimmedName = name?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(trimmedName))
+            {
+                throw new ValidationException(
+                    "O campo name deve conter pelo menos um caractere diferente de espaço.",
+                    new Dictionary<string, string[]>
+                    {
+                        ["name"] =
+                        [
+                            "O campo name deve conter pelo menos um caractere diferente de espaço."
+                        ]
+                    });
+            }
+
+            if (trimmedName.Length > ProjectNameMaxLength)
+            {
+                throw new ValidationException(
+                    "O campo name deve possuir no máximo 100 caracteres.",
+                    new Dictionary<string, string[]>
+                    {
+                        ["name"] =
+                        [
+                            "O campo name deve possuir no máximo 100 caracteres."
+                        ]
+                    });
+            }
+
+            return trimmedName;
         }
 
         private static string Normalize(string value)
@@ -169,18 +219,19 @@ namespace TaskFlow.Api.Services.Projects
             var exists = await query.AnyAsync(cancellationToken);
             if (exists)
             {
-                throw new ConflictException("Já existe um projeto com este nome.");
+                throw new ConflictException(
+                    "Já existe um projeto com este nome.",
+                    "project_name_conflict");
             }
         }
 
-        private static void HandleUniqueConstraintConflict(DbUpdateException exception)
+        private static bool IsProjectNameUniqueConstraintViolation(
+            DbUpdateException exception)
         {
-            if (exception.InnerException is not null && exception.InnerException.Message.Contains("IX_Projects_NormalizedName", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new ConflictException("Já existe um projeto com este nome.");
-            }
-
-            throw exception;
+            return exception.InnerException is SqliteException sqliteException &&
+                sqliteException.SqliteExtendedErrorCode ==
+                    SqliteUniqueConstraintErrorCode &&
+                exception.Entries.Any(entry => entry.Entity is Project);
         }
     }
 }

@@ -1,60 +1,129 @@
-using System.Net;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Infrastructure;
-using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using TaskFlow.Api.Errors.Exceptions;
 
 namespace TaskFlow.Api.Errors
 {
-    public static class GlobalExceptionHandler
+    public sealed class GlobalExceptionHandler : IExceptionHandler
     {
-        public static void ConfigureExceptionHandler(IApplicationBuilder app, IWebHostEnvironment env)
+        private readonly ILogger<GlobalExceptionHandler> _logger;
+
+        public GlobalExceptionHandler(
+            ILogger<GlobalExceptionHandler> logger)
         {
-            app.UseExceptionHandler(errorApp =>
-            {
-                errorApp.Run(async context =>
-                {
-                    var problemDetailsFactory = context.RequestServices.GetRequiredService<ProblemDetailsFactory>();
-                    var exceptionHandlerPathFeature = context.Features.Get<IExceptionHandlerPathFeature>();
-                    var exception = exceptionHandlerPathFeature?.Error;
-
-                    var problemDetails = exception switch
-                    {
-                        ValidationException validation => CreateValidationProblemDetails(context, problemDetailsFactory, validation),
-                        NotFoundException notFound => CreateProblemDetails(context, problemDetailsFactory, HttpStatusCode.NotFound, "Recurso não encontrado", notFound.Message, "project_not_found"),
-                        ConflictException conflict => CreateProblemDetails(context, problemDetailsFactory, HttpStatusCode.Conflict, "Conflito de recurso", conflict.Message, "project_name_conflict"),
-                        BusinessRuleViolationException businessRule => CreateProblemDetails(context, problemDetailsFactory, HttpStatusCode.UnprocessableEntity, "Regra de negócio violada", businessRule.Message, "project_has_in_progress_tasks"),
-                        _ => CreateProblemDetails(context, problemDetailsFactory, HttpStatusCode.InternalServerError, "Erro interno do servidor", "Ocorreu um erro inesperado.", "unexpected_error")
-                    };
-
-                    context.Response.ContentType = "application/problem+json";
-                    context.Response.StatusCode = problemDetails.Status ?? (int)HttpStatusCode.InternalServerError;
-
-                    await context.Response.WriteAsJsonAsync(problemDetails);
-                });
-            });
+            _logger = logger;
         }
 
-        private static ProblemDetails CreateProblemDetails(HttpContext context, ProblemDetailsFactory factory, HttpStatusCode statusCode, string title, string detail, string code)
+        public async ValueTask<bool> TryHandleAsync(
+            HttpContext httpContext,
+            Exception exception,
+            CancellationToken cancellationToken)
         {
-            var problemDetails = factory.CreateProblemDetails(context, (int)statusCode, title, detail, context.Request.Path);
-            problemDetails.Extensions["code"] = code;
+            var problemDetails = exception switch
+            {
+                ValidationException validationException =>
+                    CreateValidationProblemDetails(
+                        httpContext,
+                        validationException),
+
+                ApiException apiException =>
+                    CreateProblemDetails(
+                        httpContext,
+                        apiException),
+
+                _ =>
+                    CreateUnexpectedProblemDetails(httpContext)
+            };
+
+            if (exception is not ValidationException &&
+                exception is not ApiException)
+            {
+                _logger.LogError(
+                    exception,
+                    "Ocorreu uma exceção não tratada durante a requisição {Method} {Path}.",
+                    httpContext.Request.Method,
+                    httpContext.Request.Path);
+            }
+
+            httpContext.Response.StatusCode =
+                problemDetails.Status ??
+                StatusCodes.Status500InternalServerError;
+
+            var problemDetailsService =
+                httpContext.RequestServices
+                    .GetRequiredService<IProblemDetailsService>();
+
+            await problemDetailsService.WriteAsync(
+                new ProblemDetailsContext
+                {
+                    HttpContext = httpContext,
+                    ProblemDetails = problemDetails,
+                    Exception = exception
+                });
+
+            return true;
+        }
+
+        private static ValidationProblemDetails
+            CreateValidationProblemDetails(
+                HttpContext httpContext,
+                ValidationException exception)
+        {
+            var problemDetails =
+                new ValidationProblemDetails(exception.Errors)
+                {
+                    Type = "about:blank",
+                    Title = "Dados de entrada inválidos",
+                    Status = StatusCodes.Status400BadRequest,
+                    Detail = exception.Message,
+                    Instance = httpContext.Request.Path
+                };
+
+            problemDetails.Extensions["code"] =
+                "validation_error";
+
             return problemDetails;
         }
 
-        private static ValidationProblemDetails CreateValidationProblemDetails(HttpContext context, ProblemDetailsFactory factory, ValidationException validation)
+        private static ProblemDetails CreateProblemDetails(
+            HttpContext httpContext,
+            ApiException exception)
         {
-            var validationProblemDetails = new ValidationProblemDetails(validation.Errors)
+            var problemDetails = new ProblemDetails
             {
                 Type = "about:blank",
-                Title = "Dados de entrada inválidos",
-                Status = StatusCodes.Status400BadRequest,
-                Detail = validation.Message,
-                Instance = context.Request.Path
+                Title = exception.Title,
+                Status = exception.StatusCode,
+                Detail = exception.Message,
+                Instance = httpContext.Request.Path
             };
-            validationProblemDetails.Extensions["code"] = "validation_error";
-            return validationProblemDetails;
+
+            problemDetails.Extensions["code"] =
+                exception.Code;
+
+            return problemDetails;
+        }
+
+        private static ProblemDetails
+            CreateUnexpectedProblemDetails(
+                HttpContext httpContext)
+        {
+            var problemDetails = new ProblemDetails
+            {
+                Type = "about:blank",
+                Title = "Erro interno do servidor",
+                Status =
+                    StatusCodes.Status500InternalServerError,
+                Detail = "Ocorreu um erro inesperado.",
+                Instance = httpContext.Request.Path
+            };
+
+            problemDetails.Extensions["code"] =
+                "unexpected_error";
+
+            return problemDetails;
         }
     }
 }

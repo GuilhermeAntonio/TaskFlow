@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TaskFlow.Api.Domain.Entities;
+using TaskFlow.Api.Data.Converters;
 
 namespace TaskFlow.Api.Data.Configurations
 {
@@ -29,9 +30,11 @@ namespace TaskFlow.Api.Data.Configurations
                 .HasMaxLength(50);
 
             builder.Property(t => t.CreatedAt)
+                .HasConversion(UtcDateTimeConverters.Required)
                 .IsRequired();
 
             builder.Property(t => t.CompletedAt)
+                .HasConversion(UtcDateTimeConverters.Nullable)
                 .IsRequired(false);
 
             builder.Property(t => t.NormalizedTitle)
