@@ -58,18 +58,18 @@ builder.Services
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
-builder.Services.AddSwaggerGen();
-
-// Register DbContext (SQLite) - connection string from configuration
 var connectionString =
     builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException(
         "Connection string 'DefaultConnection' was not configured.");
+
 builder.Services.AddDbContext<TaskFlowDbContext>(options =>
     options.UseSqlite(connectionString));
 
 builder.Services.AddScoped<IProjectService, ProjectService>();
-builder.Services.AddScoped<TaskFlow.Api.Services.Tasks.ITaskService, TaskFlow.Api.Services.Tasks.TaskService>();
+builder.Services.AddScoped<
+    TaskFlow.Api.Services.Tasks.ITaskService,
+    TaskFlow.Api.Services.Tasks.TaskService>();
 
 var app = builder.Build();
 
@@ -77,8 +77,25 @@ app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    var openApiFilePath = Path.Combine(
+        AppContext.BaseDirectory,
+        "openapi.yaml");
+
+    app.MapGet(
+            "/openapi.yaml",
+            () => Results.File(
+                openApiFilePath,
+                "application/yaml"))
+        .ExcludeFromDescription();
+
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint(
+            "/openapi.yaml",
+            "TaskFlow — Contrato oficial");
+
+        options.RoutePrefix = "swagger";
+    });
 }
 
 app.UseHttpsRedirection();
