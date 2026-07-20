@@ -5,6 +5,7 @@
 
 - **Data:** 2026-07-17
 - **Ferramenta:** GitHub Copilot Chat
+- **Modelo:** GPT-5 mini
 - **Objetivo:** Criar a estrutura documental inicial do projeto TaskFlow e documentar o processo de geração.
 
 **Prompt:**
@@ -78,6 +79,7 @@ Antes de criar os arquivos, apresente resumidamente quais arquivos serão criado
 
 - **Data:** 2026-07-17
 - **Ferramenta:** GitHub Copilot Chat
+- **Modelo:** GPT-5 mini
 - **Objetivo:** Rever e corrigir os artefatos documentais iniciais do projeto TaskFlow.
 
 **Prompt:**
@@ -167,6 +169,7 @@ Antes de aplicar as alterações, apresente um resumo do que será modificado. A
 
 - **Data:** 2026-07-17
 - **Ferramenta:** GitHub Copilot Chat
+- **Modelo:** GPT-5 mini
 - **Etapa:** Especificação
 - **Objetivo:** Gerar a primeira versão completa do contrato da API com base no enunciado e nas decisões registradas.
 
@@ -491,6 +494,7 @@ A saída representa uma primeira versão produzida pela IA e deverá passar por 
 
 - **Data:** 2026-07-17
 - **Ferramenta:** GitHub Copilot Chat
+- **Modelo:** GPT-5 mini
 - **Etapa:** Especificação
 - **Objetivo:** Refinar o arquivo `openapi.yaml`, corrigindo schemas, exemplos de erros e descrições das operações sem alterar as decisões já aprovadas.
 
@@ -1469,3 +1473,106 @@ CS0200: JsonSchema.ActualSchema é somente leitura
 Os erros foram produzidos pela implementação inicial da validação OpenAPI com NJsonSchema. Como a compilação falhou, nenhum teste automatizado foi executado.
 
 A execução do agente foi interrompida antes da criação de um projeto temporário de inspeção. Nenhuma correção manual foi realizada antes da preservação desta saída.
+
+## PROMPT-010 — Ampliação direcionada da cobertura de testes
+
+- **Data:** 2026-07-20
+- **Ferramenta:** GitHub Copilot Chat
+- **Modelo:** GPT-5 mini
+- **Etapa:** Testes e validação contratual
+- **Objetivo:** Ampliar a cobertura da suíte existente com cenários relevantes identificados durante a revisão, sem alterar as regras de negócio ou o contrato da API.
+
+### Resumo fiel do prompt utilizado
+
+```text
+Revise a suíte de testes de integração e contrato existente no projeto TaskFlow e adicione somente os testes necessários para cobrir os cenários ainda não representados.
+
+Utilize como fonte de verdade:
+
+- openapi.yaml;
+- docs/decisoes.md;
+- implementação atual da API;
+- estrutura existente do projeto tests/TaskFlow.ContractTests.
+
+Mantenha o padrão atual dos testes:
+
+- xUnit;
+- WebApplicationFactory;
+- SQLite temporário e isolado;
+- validação das respostas contra o openapi.yaml;
+- organização em Arrange, Act e Assert;
+- comentários XML nos métodos de teste.
+
+Adicione os seguintes cenários:
+
+1. GET /projetos/{id} com UUID malformado deve retornar 400 Bad Request;
+2. PATCH /tarefas/{id} com UUID malformado deve retornar 400 Bad Request;
+3. criação de tarefa sem priority deve retornar 400 Bad Request;
+4. criação de tarefa com priority inválida deve retornar 400 Bad Request;
+5. PATCH contendo somente priority deve retornar 200 OK, alterar a prioridade e preservar os demais campos;
+6. envio manual de completedAt no PATCH deve retornar 400 Bad Request;
+7. reenvio isolado de status done para uma tarefa concluída deve retornar 200 OK e preservar exatamente o completedAt original;
+8. tentativa de alterar uma tarefa concluída de done para in_progress deve retornar 422 Unprocessable Entity.
+
+Para respostas de erro, valide:
+
+- status HTTP;
+- Content-Type;
+- aderência ao schema OpenAPI;
+- código estável presente na extensão code;
+- existência dos erros de validação aplicáveis.
+
+Não remova testes existentes.
+
+Não converta os testes existentes para Theory.
+
+Não altere regras de negócio, Controllers, Services, entidades, persistência, openapi.yaml, docs/decisoes.md ou arquivos da pasta ai.
+
+Não crie novos endpoints.
+
+Não execute comandos Git.
+
+Ao concluir:
+
+1. execute dotnet build TaskFlow.sln;
+2. execute dotnet test tests/TaskFlow.ContractTests --no-build;
+3. informe os arquivos alterados;
+4. informe a quantidade de testes aprovados e reprovados;
+5. descreva qualquer divergência encontrada.
+```
+
+### Resultado inicial da geração
+
+O GitHub Copilot adicionou oito cenários à suíte existente:
+
+- um teste em `ProjectTests.cs`;
+- sete testes em `TaskTests.cs`.
+
+Arquivos efetivamente alterados:
+
+- `tests/TaskFlow.ContractTests/ProjectTests.cs`;
+- `tests/TaskFlow.ContractTests/TaskTests.cs`.
+
+A compilação foi concluída com sucesso:
+
+```text
+0 Aviso(s)
+0 Erro(s)
+```
+
+A primeira execução da suíte apresentou:
+
+```text
+Com falha: 4
+Aprovado: 25
+Ignorado: 0
+Total: 29
+```
+
+As falhas estavam relacionadas às expectativas geradas nos testes:
+
+- busca das chaves de validação utilizando exatamente `priority`;
+- busca da chave de validação utilizando exatamente `completedAt`;
+- expectativa do código `invalid_task_status_transition` para a tentativa de alterar uma tarefa concluída de `done` para `in_progress`.
+
+A saída gerada foi submetida à revisão humana antes de ser considerada aprovada.

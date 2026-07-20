@@ -632,3 +632,118 @@ Total: 21
 ```
 
 A implementação foi aprovada após as correções humanas. Não foram necessárias alterações nas regras de negócio da aplicação nem no contrato `openapi.yaml` para fazer os testes passarem.
+
+---
+
+### Revisão da ampliação da cobertura de testes
+
+- **ID:** Revisao-20260720-009
+- **Data:** 2026-07-20
+- **Revisor:** Guilherme Bezerra Antonio
+- **Origem:** Testes adicionais gerados pelo GitHub Copilot Chat a partir do `PROMPT-010`
+- **Versão revisada:** Alterações locais validadas; commit pendente
+- **Decisão:** Aprovado após correções
+
+#### Partes aceitas
+
+- adição de teste para consulta de projeto com UUID malformado;
+- adição de teste para atualização de tarefa com UUID malformado;
+- adição de teste para criação de tarefa sem o campo obrigatório `priority`;
+- adição de teste para criação de tarefa com valor inválido em `priority`;
+- adição de teste para atualização isolada da prioridade;
+- preservação dos demais campos durante a atualização isolada da prioridade;
+- adição de teste para impedir o envio manual de `completedAt`;
+- adição de teste para o reenvio idempotente de `status: done`;
+- validação da preservação exata do valor original de `completedAt`;
+- adição de teste para tentativa de alteração de uma tarefa concluída;
+- manutenção do padrão xUnit, `WebApplicationFactory`, SQLite isolado e validação contra o `openapi.yaml`;
+- manutenção dos testes existentes sem conversão para `Theory`;
+- ausência de alterações nas regras de negócio, no contrato OpenAPI e nas decisões de arquitetura.
+
+#### Partes corrigidas
+
+- substituição da busca exata pela chave `priority` por uma validação tolerante às formas produzidas pelo model binding, como `priority`, `Priority` e `$.priority`;
+- substituição da busca exata pela chave `completedAt` por uma validação tolerante às formas produzidas pelo model binding, como `completedAt`, `CompletedAt` e `$.completedAt`;
+- correção do código esperado para a tentativa de alterar uma tarefa concluída de `done` para `in_progress`;
+- substituição de `invalid_task_status_transition` por `completed_task_cannot_be_modified`, pois a regra de imutabilidade da tarefa concluída é a regra específica aplicada nesse cenário;
+- restauração de `src/TaskFlow.Api/Program.cs`, que apareceu como modificado sem apresentar diferença de conteúdo;
+- preservação das alterações somente nos arquivos de teste previstos.
+
+#### Partes rejeitadas
+
+- dependência de uma chave de validação com capitalização ou caminho JSON exatos;
+- expectativa de `invalid_task_status_transition` para alterações realizadas após a conclusão da tarefa;
+- alteração da implementação da API somente para adequá-la às expectativas incorretas dos testes;
+- alteração do arquivo `openapi.yaml` para fazer os novos testes passarem.
+
+#### Validação inicial
+
+Foram executados:
+
+```text
+dotnet build TaskFlow.sln
+dotnet test tests/TaskFlow.ContractTests --no-build
+```
+
+Resultado inicial da compilação:
+
+```text
+0 Aviso(s)
+0 Erro(s)
+```
+
+Resultado inicial dos testes:
+
+```text
+Com falha: 4
+Aprovado: 25
+Ignorado: 0
+Total: 29
+```
+
+Falhas identificadas:
+
+- `CreateTask_WithoutPriority_Returns400_AndMatchesSchema`;
+- `CreateTask_InvalidPriority_Returns400_AndMatchesSchema`;
+- `PatchTask_CompletedAtManually_Returns400_AndMatchesSchema`;
+- `PatchTask_DoneToInProgress_Returns422_WithCode`.
+
+As três primeiras falhas foram causadas por expectativas excessivamente rígidas sobre os nomes das propriedades presentes no objeto `errors`.
+
+A quarta falha foi causada pela expectativa de um código de erro incompatível com a regra de imutabilidade das tarefas concluídas.
+
+#### Ação realizada
+
+Os quatro testes foram corrigidos manualmente, sem alteração da implementação da API, do contrato `openapi.yaml` ou do arquivo `docs/decisoes.md`.
+
+A suíte, que anteriormente continha 21 testes, recebeu oito novos cenários:
+
+- um teste em `ProjectTests.cs`;
+- sete testes em `TaskTests.cs`.
+
+#### Validação final
+
+Foram executados:
+
+```text
+dotnet build TaskFlow.sln
+dotnet test tests/TaskFlow.ContractTests --no-build
+```
+
+Resultado final da compilação:
+
+```text
+0 Aviso(s)
+0 Erro(s)
+```
+
+Resultado final dos testes:
+
+```text
+Com falha: 0
+Aprovado: 29
+Ignorado: 0
+Total: 29
+```
+
+A ampliação da cobertura foi aprovada após as correções humanas. Não foram necessárias alterações nas regras de negócio da aplicação, no contrato `openapi.yaml` ou nas decisões registradas.

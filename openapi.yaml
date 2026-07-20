@@ -135,6 +135,17 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/UpdateProjectRequest'
+            examples:
+              atualizar-projeto:
+                summary: Atualizar nome, descrição e status do projeto
+                value:
+                  name: Projeto TaskFlow Atualizado
+                  description: Projeto atualizado durante a revisão final
+                  status: archived
+              remover-descricao:
+                summary: Remover a descrição do projeto
+                value:
+                  description: null
       responses:
         '200':
           description: Projeto atualizado
@@ -142,6 +153,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProjectResponse'
+              examples:
+                projeto-atualizado:
+                  summary: Projeto atualizado e arquivado
+                  value:
+                    id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                    name: Projeto TaskFlow Atualizado
+                    description: Projeto atualizado durante a revisão final
+                    status: archived
+                    createdAt: "2026-07-17T12:00:00Z"
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
@@ -270,6 +290,22 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/UpdateTaskRequest'
+            examples:
+              iniciar-tarefa:
+                summary: Atualizar dados e iniciar a tarefa
+                value:
+                  title: Implementar contrato OpenAPI
+                  description: Ajustar os exemplos exibidos no Swagger UI
+                  status: in_progress
+                  priority: high
+              concluir-tarefa:
+                summary: Concluir uma tarefa em progresso
+                value:
+                  status: done
+              remover-descricao:
+                summary: Remover a descrição da tarefa
+                value:
+                  description: null
       responses:
         '200':
           description: Tarefa atualizada
@@ -277,6 +313,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TaskResponse'
+              examples:
+                tarefa-em-progresso:
+                  summary: Tarefa atualizada e iniciada
+                  value:
+                    id: "d290f1ee-6c54-4b01-90e6-d701748f0851"
+                    title: Implementar contrato OpenAPI
+                    description: Ajustar os exemplos exibidos no Swagger UI
+                    status: in_progress
+                    priority: high
+                    createdAt: "2026-07-17T12:00:00Z"
+                    completedAt: null
+                    projectId: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                tarefa-concluida:
+                  summary: Tarefa concluída com completedAt preenchido pela aplicação
+                  value:
+                    id: "d290f1ee-6c54-4b01-90e6-d701748f0851"
+                    title: Implementar contrato OpenAPI
+                    description: Ajustar os exemplos exibidos no Swagger UI
+                    status: done
+                    priority: high
+                    createdAt: "2026-07-17T12:00:00Z"
+                    completedAt: "2026-07-20T21:30:00Z"
+                    projectId: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
