@@ -113,3 +113,30 @@ Os requisitos obrigatórios são derivados do enunciado do desafio e refletidos 
 - **Justificativa:** A unicidade reduz ambiguidades na identificação dos recursos e evita registros equivalentes gerados apenas por diferenças de formatação.
 - **Alternativas consideradas:** Permitir nomes de projetos e títulos de tarefas duplicados.
 - **Impacto:** Conflitos durante criação ou atualização retornarão `409 Conflict` com `ProblemDetails`. Serão utilizados os códigos `project_name_conflict` e `task_title_conflict`.
+
+### DEC-20260720-010 — Utilização do contrato OpenAPI versionado no Swagger UI
+
+- **Data:** 2026-07-20
+- **Status:** Aceita
+- **Decisão:** Configurar o Swagger UI para carregar diretamente o arquivo `openapi.yaml` versionado na raiz do repositório.
+- **Justificativa:** Manter um único contrato como fonte de verdade reduz o risco de divergência entre a especificação utilizada no desenvolvimento, os testes de contrato e a documentação apresentada pelo Swagger UI.
+- **Alternativas consideradas:** Utilizar o documento OpenAPI gerado automaticamente pela aplicação ou manter simultaneamente o contrato versionado e o contrato gerado em tempo de execução.
+- **Impacto:** O arquivo `openapi.yaml` é copiado para a saída da aplicação e disponibilizado pelo endpoint `/openapi.yaml`. Alterações no contrato devem ser realizadas no arquivo versionado, e não em uma especificação paralela gerada pelo Swagger.
+
+### DEC-20260720-011 — Arquitetura proporcional ao escopo da aplicação
+
+- **Data:** 2026-07-20
+- **Status:** Aceita
+- **Decisão:** Manter uma arquitetura em camadas simples, separando contratos HTTP, Controllers, Services, domínio e persistência, sem introduzir abstrações ou padrões adicionais que não sejam necessários para os requisitos atuais.
+- **Justificativa:** O tamanho e o escopo da aplicação não justificam a adoção de estruturas mais complexas. A separação existente mantém responsabilidades claras, testabilidade e legibilidade sem aumentar desnecessariamente o número de componentes.
+- **Alternativas consideradas:** Introdução de repositórios genéricos, CQRS, MediatR, arquitetura hexagonal completa ou separação em múltiplos projetos por camada.
+- **Impacto:** Os Services utilizam diretamente o `TaskFlowDbContext`, e novas abstrações deverão ser introduzidas apenas quando houver uma necessidade concreta de domínio, infraestrutura, reutilização ou evolução da aplicação.
+
+### DEC-20260720-012 — Padronização de datas e horários em UTC
+
+- **Data:** 2026-07-20
+- **Status:** Aceita
+- **Decisão:** Gerar, persistir e retornar os campos de data e horário da aplicação em UTC.
+- **Justificativa:** A utilização de UTC evita ambiguidades relacionadas ao fuso horário do ambiente de execução e permite um comportamento consistente entre diferentes servidores, clientes e regiões.
+- **Alternativas consideradas:** Utilizar o horário local do servidor ou armazenar os valores já convertidos para um fuso horário específico.
+- **Impacto:** Campos como `createdAt` e `completedAt` serão produzidos em UTC. A conversão para o fuso horário do usuário será responsabilidade do consumidor no momento da apresentação. Valores retornados pela API deverão preservar a indicação de UTC no formato ISO 8601.
