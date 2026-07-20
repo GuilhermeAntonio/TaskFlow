@@ -294,6 +294,40 @@ namespace TaskFlow.ContractTests
                 body.GetProperty("code").GetString());
         }
 
+        /// <summary>
+        /// Verifica se a consulta de um projeto com UUID malformado retorna
+        /// 400 Bad Request e uma resposta aderente ao contrato OpenAPI.
+        /// </summary>
+        [Fact]
+        public async Task GetProject_MalformedUuid_Returns400_AndMatchesSchema()
+        {
+            // Arrange
+            using var factory = CreateFactory();
+            using var client = factory.CreateClient();
+
+            // Act
+            var response = await client.GetAsync("/projetos/not-a-guid");
+
+            // Assert
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+            await _validator.ValidateAsync(
+                response,
+                "/projetos/{id}",
+                OperationType.Get,
+                400);
+
+            var body = await ReadJsonAsync(response);
+
+            Assert.Equal(
+                "validation_error",
+                body.GetProperty("code").GetString());
+
+            Assert.True(
+                body.GetProperty("errors")
+                    .TryGetProperty("id", out _));
+        }
+
         private static async Task<JsonElement> ReadJsonAsync(
             HttpResponseMessage response)
         {

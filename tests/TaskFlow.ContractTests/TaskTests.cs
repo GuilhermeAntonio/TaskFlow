@@ -717,6 +717,395 @@ namespace TaskFlow.ContractTests
                 body.GetProperty("code").GetString());
         }
 
+
+        /// <summary>
+        /// Verifica se o PATCH de uma tarefa com UUID malformado retorna
+        /// 400 Bad Request e uma resposta aderente ao contrato OpenAPI.
+        /// </summary>
+        [Fact]
+        public async Task PatchTask_MalformedUuid_Returns400_AndMatchesSchema()
+        {
+            // Arrange
+            using var factory = CreateFactory();
+            using var client = factory.CreateClient();
+
+            // Act
+            var response = await client.PatchAsync(
+                "/tarefas/not-a-guid",
+                JsonContent.Create(new
+                {
+                    priority = "high"
+                }));
+
+            // Assert
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+            await _validator.ValidateAsync(
+                response,
+                "/tarefas/{id}",
+                OperationType.Patch,
+                400);
+
+            var body = await ReadJsonAsync(response);
+
+            Assert.Equal(
+                "validation_error",
+                body.GetProperty("code").GetString());
+
+            Assert.Contains(
+                body.GetProperty("errors").EnumerateObject(),
+                error =>
+                    error.Name.Equals(
+                        "id",
+                        StringComparison.OrdinalIgnoreCase)
+                    || error.Name.EndsWith(
+                        ".id",
+                        StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Verifica se a criação de uma tarefa sem priority retorna
+        /// 400 Bad Request e uma resposta aderente ao contrato OpenAPI.
+        /// </summary>
+        [Fact]
+        public async Task CreateTask_WithoutPriority_Returns400_AndMatchesSchema()
+        {
+            // Arrange
+            using var factory = CreateFactory();
+            using var client = factory.CreateClient();
+
+            var projectId = await CreateProjectAsync(
+                client,
+                "Projeto Sem Priority");
+
+            // Act
+            var response = await client.PostAsJsonAsync(
+                $"/projetos/{projectId}/tarefas",
+                new
+                {
+                    title = "Tarefa sem priority"
+                });
+
+            // Assert
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+            await _validator.ValidateAsync(
+                response,
+                "/projetos/{id}/tarefas",
+                OperationType.Post,
+                400);
+
+            var body = await ReadJsonAsync(response);
+
+            Assert.Equal(
+                "validation_error",
+                body.GetProperty("code").GetString());
+
+            Assert.Contains(
+                body.GetProperty("errors").EnumerateObject(),
+                error =>
+                    error.Name.Equals(
+                        "priority",
+                        StringComparison.OrdinalIgnoreCase)
+                    || error.Name.EndsWith(
+                        ".priority",
+                        StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Verifica se a criação de uma tarefa com priority inválida retorna
+        /// 400 Bad Request e uma resposta aderente ao contrato OpenAPI.
+        /// </summary>
+        [Fact]
+        public async Task CreateTask_InvalidPriority_Returns400_AndMatchesSchema()
+        {
+            // Arrange
+            using var factory = CreateFactory();
+            using var client = factory.CreateClient();
+
+            var projectId = await CreateProjectAsync(
+                client,
+                "Projeto Priority Inválida");
+
+            // Act
+            var response = await client.PostAsJsonAsync(
+                $"/projetos/{projectId}/tarefas",
+                new
+                {
+                    title = "Tarefa priority inválida",
+                    priority = "invalid_priority"
+                });
+
+            // Assert
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+            await _validator.ValidateAsync(
+                response,
+                "/projetos/{id}/tarefas",
+                OperationType.Post,
+                400);
+
+            var body = await ReadJsonAsync(response);
+
+            Assert.Equal(
+                "validation_error",
+                body.GetProperty("code").GetString());
+
+            Assert.Contains(
+                body.GetProperty("errors").EnumerateObject(),
+                error =>
+                    error.Name.Equals(
+                        "priority",
+                        StringComparison.OrdinalIgnoreCase)
+                    || error.Name.EndsWith(
+                        ".priority",
+                        StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Verifica se o PATCH de tarefa com somente priority retorna 200,
+        /// alterando a prioridade e preservando title, description e status.
+        /// </summary>
+        [Fact]
+        public async Task PatchTask_OnlyPriority_Returns200_AndPreservesOtherFields()
+        {
+            // Arrange
+            using var factory = CreateFactory();
+            using var client = factory.CreateClient();
+
+            var projectId = await CreateProjectAsync(
+                client,
+                "Projeto Priority Patch");
+
+            var createResponse = await client.PostAsJsonAsync(
+                $"/projetos/{projectId}/tarefas",
+                new
+                {
+                    title = "Tarefa Priority Patch",
+                    description = "Descrição original",
+                    priority = "medium"
+                });
+
+            createResponse.EnsureSuccessStatusCode();
+
+            var createdTask = await ReadJsonAsync(createResponse);
+            var taskId = createdTask.GetProperty("id").GetString();
+
+            Assert.NotNull(taskId);
+
+            // Act
+            var response = await client.PatchAsync(
+                $"/tarefas/{taskId}",
+                JsonContent.Create(new
+                {
+                    priority = "high"
+                }));
+
+            // Assert
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            await _validator.ValidateAsync(
+                response,
+                "/tarefas/{id}",
+                OperationType.Patch,
+                200);
+
+            var body = await ReadJsonAsync(response);
+
+            Assert.Equal(
+                "Tarefa Priority Patch",
+                body.GetProperty("title").GetString());
+
+            Assert.Equal(
+                "Descrição original",
+                body.GetProperty("description").GetString());
+
+            Assert.Equal(
+                "pending",
+                body.GetProperty("status").GetString());
+
+            Assert.Equal(
+                "high",
+                body.GetProperty("priority").GetString());
+
+            Assert.Equal(
+                JsonValueKind.Null,
+                body.GetProperty("completedAt").ValueKind);
+        }
+
+        /// <summary>
+        /// Verifica se o envio manual de completedAt no PATCH retorna
+        /// 400 Bad Request e uma resposta aderente ao contrato OpenAPI.
+        /// </summary>
+        [Fact]
+        public async Task PatchTask_CompletedAtManually_Returns400_AndMatchesSchema()
+        {
+            // Arrange
+            using var factory = CreateFactory();
+            using var client = factory.CreateClient();
+
+            var projectId = await CreateProjectAsync(
+                client,
+                "Projeto CompletedAt Manual");
+
+            var taskId = await CreateTaskAsync(
+                client,
+                projectId,
+                "Tarefa CompletedAt Manual");
+
+            // Act
+            var response = await client.PatchAsync(
+                $"/tarefas/{taskId}",
+                JsonContent.Create(new
+                {
+                    completedAt = "2026-01-01T00:00:00Z"
+                }));
+
+            // Assert
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+            await _validator.ValidateAsync(
+                response,
+                "/tarefas/{id}",
+                OperationType.Patch,
+                400);
+
+            var body = await ReadJsonAsync(response);
+
+            Assert.Equal(
+                "validation_error",
+                body.GetProperty("code").GetString());
+
+            Assert.Contains(
+                body.GetProperty("errors").EnumerateObject(),
+                error =>
+                    error.Name.Equals(
+                        "completedAt",
+                        StringComparison.OrdinalIgnoreCase)
+                    || error.Name.EndsWith(
+                        ".completedAt",
+                        StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Verifica se reenviar somente status done para uma tarefa já
+        /// concluída retorna 200 e preserva exatamente o completedAt anterior.
+        /// </summary>
+        [Fact]
+        public async Task PatchTask_DoneAgain_Returns200_AndPreservesCompletedAt()
+        {
+            // Arrange
+            using var factory = CreateFactory();
+            using var client = factory.CreateClient();
+
+            var projectId = await CreateProjectAsync(
+                client,
+                "Projeto Done Idempotente");
+
+            var taskId = await CreateTaskAsync(
+                client,
+                projectId,
+                "Tarefa Done Idempotente");
+
+            var startResponse = await client.PatchAsync(
+                $"/tarefas/{taskId}",
+                JsonContent.Create(new
+                {
+                    status = "in_progress"
+                }));
+
+            startResponse.EnsureSuccessStatusCode();
+
+            var doneResponse = await client.PatchAsync(
+                $"/tarefas/{taskId}",
+                JsonContent.Create(new
+                {
+                    status = "done"
+                }));
+
+            doneResponse.EnsureSuccessStatusCode();
+
+            var completedTask = await ReadJsonAsync(doneResponse);
+            var originalCompletedAt = completedTask
+                .GetProperty("completedAt")
+                .GetString();
+
+            Assert.False(string.IsNullOrWhiteSpace(originalCompletedAt));
+
+            // Act
+            var response = await client.PatchAsync(
+                $"/tarefas/{taskId}",
+                JsonContent.Create(new
+                {
+                    status = "done"
+                }));
+
+            // Assert
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            await _validator.ValidateAsync(
+                response,
+                "/tarefas/{id}",
+                OperationType.Patch,
+                200);
+
+            var body = await ReadJsonAsync(response);
+
+            Assert.Equal(
+                "done",
+                body.GetProperty("status").GetString());
+
+            Assert.Equal(
+                originalCompletedAt,
+                body.GetProperty("completedAt").GetString());
+        }
+
+        /// <summary>
+        /// Verifica se uma tarefa concluída não pode retornar ao status
+        /// in_progress e se a regra de imutabilidade prevalece.
+        /// </summary>
+        [Fact]
+        public async Task PatchTask_DoneToInProgress_Returns422_WithCode()
+        {
+            // Arrange
+            using var factory = CreateFactory();
+            using var client = factory.CreateClient();
+
+            var projectId = await CreateProjectAsync(
+                client,
+                "Projeto Done In Progress");
+
+            var taskId = await CreateTaskAsync(
+                client,
+                projectId,
+                "Tarefa Done In Progress");
+
+            await MoveTaskToDoneAsync(client, taskId);
+
+            // Act
+            var response = await client.PatchAsync(
+                $"/tarefas/{taskId}",
+                JsonContent.Create(new
+                {
+                    status = "in_progress"
+                }));
+
+            // Assert
+            Assert.Equal((HttpStatusCode)422, response.StatusCode);
+
+            await _validator.ValidateAsync(
+                response,
+                "/tarefas/{id}",
+                OperationType.Patch,
+                422);
+
+            var body = await ReadJsonAsync(response);
+
+            Assert.Equal(
+                "completed_task_cannot_be_modified",
+                body.GetProperty("code").GetString());
+        }
+
         private static async Task<string> CreateProjectAsync(
             HttpClient client,
             string projectName)
