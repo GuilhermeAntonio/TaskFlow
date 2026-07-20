@@ -38,14 +38,14 @@ namespace TaskFlow.Api.Controllers
             return Ok(projects);
         }
 
-        [HttpGet("{id:guid}", Name = "GetProjectById")]
+        [HttpGet("{id}", Name = "GetProjectById")]
         public async Task<IActionResult> GetByIdAsync(Guid id,CancellationToken cancellationToken)
         {
             var project = await _projectService.GetByIdAsync(id, cancellationToken);
             return Ok(project);
         }
 
-        [HttpPatch("{id:guid}")]
+        [HttpPatch("{id}")]
         public async Task<IActionResult> UpdateAsync(Guid id, [FromBody] UpdateProjectRequest request, CancellationToken cancellationToken)
         {
             var project = await _projectService.UpdateAsync(id, request, cancellationToken);

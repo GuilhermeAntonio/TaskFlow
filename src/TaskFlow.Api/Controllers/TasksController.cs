@@ -15,7 +15,7 @@ namespace TaskFlow.Api.Controllers
             _taskService = taskService;
         }
 
-        [HttpPost("/projetos/{projectId:guid}/tarefas")]
+        [HttpPost("/projetos/{projectId}/tarefas")]
         public async Task<IActionResult> CreateAsync(
             Guid projectId,
             [FromBody] CreateTaskRequest request,
@@ -29,7 +29,7 @@ namespace TaskFlow.Api.Controllers
             return StatusCode(StatusCodes.Status201Created, task);
         }
 
-        [HttpGet("/projetos/{projectId:guid}/tarefas")]
+        [HttpGet("/projetos/{projectId}/tarefas")]
         public async Task<IActionResult> ListAsync(Guid projectId, [FromQuery] string? status, [FromQuery] string? priority, CancellationToken cancellationToken)
         {
             var parsedStatus = ParseStatus(status);
@@ -39,14 +39,14 @@ namespace TaskFlow.Api.Controllers
             return Ok(tasks);
         }
 
-        [HttpPatch("/tarefas/{id:guid}")]
+        [HttpPatch("/tarefas/{id}")]
         public async Task<IActionResult> PatchAsync(Guid id, [FromBody] UpdateTaskRequest request, CancellationToken cancellationToken)
         {
             var task = await _taskService.PatchAsync(id, request, cancellationToken);
             return Ok(task);
         }
 
-        [HttpDelete("/tarefas/{id:guid}")]
+        [HttpDelete("/tarefas/{id}")]
         public async Task<IActionResult> DeleteAsync(Guid id, CancellationToken cancellationToken)
         {
             await _taskService.DeleteAsync(id, cancellationToken);
